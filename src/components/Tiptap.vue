@@ -1,6 +1,8 @@
 <template>
   <div class="editor" v-if="editor">
-    <button @click="connectWebrtc">Share Document Live</button>
+    <button @click="setupWebrtc">Share Document Live</button>
+    <button @click="connectWebrtc">Connect</button>
+    <button @click="disconnectWebrtc">Disconnect</button>
     <menu-bar class="editor__header" :editor="editor" />
     <editor-content class="editor__content" :editor="editor" />
   </div>
@@ -15,7 +17,6 @@ import Document from "@tiptap/extension-document";
 import Paragraph from "@tiptap/extension-paragraph";
 import Text from "@tiptap/extension-text";
 import Dropcursor from "@tiptap/extension-dropcursor";
-
 import Collaboration from "@tiptap/extension-collaboration";
 import CollaborationCursor from "@tiptap/extension-collaboration-cursor";
 import TaskList from "@tiptap/extension-task-list";
@@ -26,6 +27,20 @@ import TableRow from "@tiptap/extension-table-row";
 import TableCell from "@tiptap/extension-table-cell";
 import TableHeader from "@tiptap/extension-table-header";
 import Image from "@tiptap/extension-image";
+import Blockquote from "@tiptap/extension-blockquote";
+import BulletList from "@tiptap/extension-bullet-list"
+import OrderedList from "@tiptap/extension-ordered-list"
+import ListItem from "@tiptap/extension-list-item"
+import Code from "@tiptap/extension-code"
+import CodeBlock from '@tiptap/extension-code-block'
+import HardBreak from "@tiptap/extension-hard-break"
+import Heading from "@tiptap/extension-heading"
+import HorizontalRule from "@tiptap/extension-horizontal-rule"
+import Bold from "@tiptap/extension-bold"
+import Italics from "@tiptap/extension-italic"
+import Strike from "@tiptap/extension-strike"
+
+// Standard Notes
 import EditorKit from "@standardnotes/editor-kit";
 
 import * as Y from "yjs";
@@ -60,8 +75,7 @@ export default {
     */
     makeid(length) {
       var result = "";
-      var characters =
-        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+      var characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~";
       var charactersLength = characters.length;
       for (var i = 0; i < length; i++) {
         result += characters.charAt(
@@ -104,6 +118,12 @@ export default {
         mode: "html",
         supportsFileSafe: false,
       });
+
+      this.editorKit.getFileSafe().then((filesafeInstance) => {
+        // this.componentRelay is not initalized until onNoteValueChange() is called for the first time
+        // DO NOT access it here
+        this.componentRelay = filesafeInstance['extensionBridge']['componentManager']
+      })
     },
 
     resetEditor() {
@@ -113,8 +133,8 @@ export default {
     },
 
     configureEditor(webrtcEnabled) {
-      let documentName = this.makeid(16);
-      let documentPassword = this.makeid(16);
+      let documentName = this.makeid(32);
+      let documentPassword = this.makeid(32);
 
       let editorText = null;
       if (this.editor) {
@@ -155,26 +175,68 @@ export default {
         Highlight,
         TaskList,
         TaskItem,
+        Blockquote,
+        BulletList,
+        OrderedList,
+        ListItem,
+        Code,
+        CodeBlock,
+        HardBreak,
+        Heading,
+        HorizontalRule,
+        Bold,
+        Italics,
+        Strike,
       ];
 
       if (webrtcEnabled) {
         this.ydoc = new Y.Doc();
-        console.log(`name: ${documentName}`);
-        console.log(`password: ${documentPassword}`);
-
-        console.log(
-          `http://192.168.0.171:8080/?documentName=${documentName}&documentPassword=${documentPassword}`
-        );
+        const url = `http://localhost:8080/?documentName=${documentName}&documentPassword=${documentPassword}`
+        
+        // Do not show the sharing URL to clients, only to the host
+        if (url !== window.location.href) {
+          // Host
+          this.isWebrtcHost = true
+          console.log(url)
+          alert(url)
+        } else {
+          // Client
+          this.isWebrtcHost = false
+        }
 
         this.provider = new WebrtcProvider(documentName, this.ydoc, {
           password: documentPassword,
         });
+
+          /*
+          * WebRTC clients (non-hosts) should remember the hosts unique ID to determine when the host has left the room.
+          * On each subsequent `peers` event, they should check to see if that unique ID has left. If so, the host has left the room.
+          */
+        this.provider.on('peers', (data) => {
+          console.log('peers')
+          const removed = data['removed']
+          //const added = data['addeed']
+          const webrtcPeers = data['webrtcPeers']
+          //const bcPeers = data['bcPeers']
+         
+          if (!this.isWebrtcHost && this.webrtcHostId === undefined) {
+            // Client has just joined
+            this.webrtcHostId = webrtcPeers[0]  
+          } else if (!this.isWebrtcHost) {
+            // Client should check if host has left
+            if (removed.includes(this.webrtcHostId)) {
+              this.editor.setEditable(false);
+              alert('Host disconnected. Document is no longer editable.')
+            }
+          }
+        })
 
         extensions.push(
           Collaboration.configure({
             document: this.ydoc,
           })
         );
+
         extensions.push(
           CollaborationCursor.configure({
             provider: this.provider,
@@ -198,10 +260,19 @@ export default {
       }
     },
 
-    connectWebrtc() {
+    setupWebrtc() {
+      if (this.provider) this.provider.destroy();
       this.editor.destroy();
       this.configureEditor(true);
     },
+
+    disconnectWebrtc() {
+      this.provider.disconnect();
+    },
+
+    connectWebrtc() {
+      this.provider.connect();
+    }
   },
 
   mounted() {
@@ -325,7 +396,6 @@ body {
       color: inherit;
       padding: 0;
       background: none;
-      font-size: 0.8rem;
     }
   }
 

@@ -155,7 +155,7 @@ export default {
         {
           icon: 'a-b',
           title: 'test',
-          action: () => console.log(this.editor.commands.insertContentAt(0, "<p testAttr='abc123'>this is yet another test</p>")),
+          action: () => this.setupWebrtc,
         },
       ],
     }
