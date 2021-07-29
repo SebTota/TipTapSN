@@ -191,7 +191,7 @@ export default {
 
       if (webrtcEnabled) {
         this.ydoc = new Y.Doc();
-        const url = `https://sebtota.github.io/TipTapSN?documentName=${documentName}&documentPassword=${documentPassword}`
+        const url = `https://sebtota.github.io/TipTapSN/?documentName=${documentName}&documentPassword=${documentPassword}`
         
         // Do not show the sharing URL to clients, only to the host
         if (url !== window.location.href) {
