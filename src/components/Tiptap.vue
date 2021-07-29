@@ -1,81 +1,136 @@
-
 <template>
   <div class="editor" v-if="editor">
-    <button @click="addImage">
-      add image from URL
-    </button>
+    <button @click="connectWebrtc">Share Document Live</button>
     <menu-bar class="editor__header" :editor="editor" />
     <editor-content class="editor__content" :editor="editor" />
   </div>
 </template>
 
 <script>
-import { EditorContent } from '@tiptap/vue-2'
+import { EditorContent } from "@tiptap/vue-2";
 // import StarterKit from '@tiptap/starter-kit'
-import { Editor } from '@tiptap/core'
+import { Editor } from "@tiptap/core";
 
-import Document from '@tiptap/extension-document'
-import Paragraph from '@tiptap/extension-paragraph'
-import Text from '@tiptap/extension-text'
-import Dropcursor from '@tiptap/extension-dropcursor'
+import Document from "@tiptap/extension-document";
+import Paragraph from "@tiptap/extension-paragraph";
+import Text from "@tiptap/extension-text";
+import Dropcursor from "@tiptap/extension-dropcursor";
 
-import Collaboration from '@tiptap/extension-collaboration'
-import CollaborationCursor from '@tiptap/extension-collaboration-cursor'
-import TaskList from '@tiptap/extension-task-list'
-import TaskItem from '@tiptap/extension-task-item'
-import Highlight from '@tiptap/extension-highlight'
-import Table from '@tiptap/extension-table'
-import TableRow from '@tiptap/extension-table-row'
-import TableCell from '@tiptap/extension-table-cell'
-import TableHeader from '@tiptap/extension-table-header'
-import Image from '@tiptap/extension-image'
+import Collaboration from "@tiptap/extension-collaboration";
+import CollaborationCursor from "@tiptap/extension-collaboration-cursor";
+import TaskList from "@tiptap/extension-task-list";
+import TaskItem from "@tiptap/extension-task-item";
+import Highlight from "@tiptap/extension-highlight";
+import Table from "@tiptap/extension-table";
+import TableRow from "@tiptap/extension-table-row";
+import TableCell from "@tiptap/extension-table-cell";
+import TableHeader from "@tiptap/extension-table-header";
+import Image from "@tiptap/extension-image";
+import EditorKit from "@standardnotes/editor-kit";
 
-import * as Y from 'yjs'
-import { WebrtcProvider } from 'y-webrtc'
-import MenuBar from './MenuBar.vue'
+import * as Y from "yjs";
+import { WebrtcProvider } from "y-webrtc";
+import MenuBar from "./MenuBar.vue";
 
 export default {
   components: {
     EditorContent,
-    MenuBar
+    MenuBar,
   },
 
   data() {
     return {
       editor: null,
-    }
+    };
   },
 
   methods: {
+    /* 
+    * Boiler plate for adding images to the editor
+    */
     addImage() {
-      const url = window.prompt('URL')
+      const url = window.prompt("URL");
       if (url) {
-        this.editor.chain().focus().setImage({ src: url }).run()
+        this.editor.chain().focus().setImage({ src: url }).run();
       }
     },
-  },
 
-  mounted() {
-    this.ydoc = new Y.Doc()
-    this.provider = new WebrtcProvider('example-document', this.ydoc)
+    /*
+    * Generate a random ID of a specified length
+    */
+    makeid(length) {
+      var result = "";
+      var characters =
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+      var charactersLength = characters.length;
+      for (var i = 0; i < length; i++) {
+        result += characters.charAt(
+          Math.floor(Math.random() * charactersLength)
+        );
+      }
+      return result;
+    },
 
-    this.editor = new Editor({
-      extensions: [
-        // StarterKit.configure({
-        //   history: false,
-        //   dropcuror: true,
-        //   gapcursor: true
-        // }),
-        Collaboration.configure({
-            document: this.ydoc,
-        }),
-        CollaborationCursor.configure({
-            provider: this.provider,
-            user: {
-              name: 'Cyndi Lauper',
-              color: '#'+Math.floor(Math.random()*16777215).toString(16),
-            },
-        }),
+    /*
+    * Event handler for when an update occurs on the editor
+    */
+    onEditorUpdate() {
+      this.editorKit.onEditorValueChanged(this.editor.getHTML());
+    },
+
+    configureEditorKit() {
+      const delegate = {
+        // insertRawText: (text) => {},
+        setEditorRawText: (text) => {
+          this.editor.commands.setContent(text);
+        },
+        // getCurrentLineText: () => {},
+        // getPreviousLineText: () => {},
+        // replaceText: ({ regex, replacement, previousLine }) => {},
+        // getElementsBySelector: (selector) => {},
+        // insertElement: (element, inVicinityOfElement, insertionType) => {},
+        // preprocessElement: (element) => {},
+        clearUndoHistory: () => {
+          this.resetEditor();
+        },
+        onNoteLockToggle: (isLocked) => {this.editor.setEditable(!isLocked)},
+        onNoteValueChange: (note) => {
+          if (this.note_uuid !== null) { this.resetEditor() }  // Need this to close the collaborative editing
+          this.note_uuid = note.uuid;
+        },
+      };
+
+      this.editorKit = new EditorKit(delegate, {
+        mode: "html",
+        supportsFileSafe: false,
+      });
+    },
+
+    resetEditor() {
+      this.editor.off(this.onEditorUpdate)
+      this.editor.destroy()
+      this.configureEditor(false)
+    },
+
+    configureEditor(webrtcEnabled) {
+      let documentName = this.makeid(16);
+      let documentPassword = this.makeid(16);
+
+      let editorText = null;
+      if (this.editor) {
+        editorText = this.editor.getHTML();
+        this.editor.off(this.onEditorUpdate)
+      }
+
+      const params = new URLSearchParams(window.location.search);
+
+      if (params.get("documentName") && params.get("documentPassword")) {
+        webrtcEnabled = true;
+        documentName = params.get("documentName");
+        documentPassword = params.get("documentPassword");
+      }
+
+      let extensions = [
         Table.configure({
           resizable: true,
         }),
@@ -86,10 +141,10 @@ export default {
               testAttr: {
                 ...this.parent?.(),
                 default: null,
-                keepOnSplit: false
-              }
-            }
-          }
+                keepOnSplit: false,
+              },
+            };
+          },
         }),
         Text,
         Image,
@@ -100,17 +155,65 @@ export default {
         Highlight,
         TaskList,
         TaskItem,
-      ],
-      autofocus: true,
-    })
-    window.editor = this.editor
+      ];
+
+      if (webrtcEnabled) {
+        this.ydoc = new Y.Doc();
+        console.log(`name: ${documentName}`);
+        console.log(`password: ${documentPassword}`);
+
+        console.log(
+          `http://192.168.0.171:8080/?documentName=${documentName}&documentPassword=${documentPassword}`
+        );
+
+        this.provider = new WebrtcProvider(documentName, this.ydoc, {
+          password: documentPassword,
+        });
+
+        extensions.push(
+          Collaboration.configure({
+            document: this.ydoc,
+          })
+        );
+        extensions.push(
+          CollaborationCursor.configure({
+            provider: this.provider,
+            user: {
+              name: "Test User",
+              color: "#" + Math.floor(Math.random() * 16777215).toString(16),
+            },
+          })
+        );
+      }
+
+      this.editor = new Editor({
+        extensions: extensions,
+        autofocus: true,
+      });
+      window.editor = this.editor;
+      this.editor.on('update', this.onEditorUpdate)
+
+      if (editorText) {
+        this.editor.commands.setContent(editorText);
+      }
+    },
+
+    connectWebrtc() {
+      this.editor.destroy();
+      this.configureEditor(true);
+    },
+  },
+
+  mounted() {
+    this.configureEditorKit();
+    this.configureEditor(false);
   },
 
   beforeDestroy() {
-    this.editor.destroy()
-    this.provider.destroy()
+    this.editor.destroy();
+    this.provider.destroy();
   },
-}
+};
 </script>
 
 <style lang="scss" scoped>
@@ -118,14 +221,14 @@ export default {
   height: 100%;
   display: flex;
   flex-direction: column;
-  color: #0D0D0D;
+  color: #0d0d0d;
   &__header {
     display: flex;
     align-items: center;
     flex: 0 0 auto;
     flex-wrap: wrap;
     padding: 0.25rem;
-    border-bottom: 3px solid #0D0D0D;
+    border-bottom: 3px solid #0d0d0d;
   }
   &__content {
     padding: 16px 18px;
@@ -164,8 +267,8 @@ body {
   position: relative;
   margin-left: -1px;
   margin-right: -1px;
-  border-left: 1px solid #0D0D0D;
-  border-right: 1px solid #0D0D0D;
+  border-left: 1px solid #0d0d0d;
+  border-right: 1px solid #0d0d0d;
   word-break: normal;
   pointer-events: none;
 }
@@ -180,7 +283,7 @@ body {
   font-weight: 600;
   line-height: normal;
   user-select: none;
-  color: #0D0D0D;
+  color: #0d0d0d;
   padding: 0.1rem 0.3rem;
   border-radius: 3px 3px 3px 0;
   white-space: nowrap;
@@ -212,9 +315,9 @@ body {
   }
 
   pre {
-    background: #0D0D0D;
-    color: #FFF;
-    font-family: 'JetBrainsMono', monospace;
+    background: #0d0d0d;
+    color: #fff;
+    font-family: "JetBrainsMono", monospace;
     padding: 0.75rem 1rem;
     border-radius: 0.5rem;
 
@@ -227,7 +330,7 @@ body {
   }
 
   mark {
-    background-color: #FAF594;
+    background-color: #faf594;
   }
 
   img {
@@ -241,12 +344,12 @@ body {
 
   blockquote {
     padding-left: 1rem;
-    border-left: 2px solid rgba(#0D0D0D, 0.1);
+    border-left: 2px solid rgba(#0d0d0d, 0.1);
   }
 
   hr {
     border: none;
-    border-top: 2px solid rgba(#0D0D0D, 0.1);
+    border-top: 2px solid rgba(#0d0d0d, 0.1);
     margin: 2rem 0;
   }
 
@@ -299,7 +402,10 @@ body {
       z-index: 2;
       position: absolute;
       content: "";
-      left: 0; right: 0; top: 0; bottom: 0;
+      left: 0;
+      right: 0;
+      top: 0;
+      bottom: 0;
       background: rgba(200, 200, 255, 0.4);
       pointer-events: none;
     }
@@ -325,3 +431,4 @@ body {
   cursor: col-resize;
 }
 </style>
+
