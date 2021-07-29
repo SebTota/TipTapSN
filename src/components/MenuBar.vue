@@ -152,11 +152,6 @@ export default {
           title: 'Redo',
           action: () => this.editor.chain().focus().redo().run(),
         },
-        {
-          icon: 'a-b',
-          title: 'test',
-          action: () => this.setupWebrtc,
-        },
       ],
     }
   },

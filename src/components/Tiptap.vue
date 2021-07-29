@@ -12,7 +12,7 @@
 import { EditorContent } from "@tiptap/vue-2";
 // import StarterKit from '@tiptap/starter-kit'
 import { Editor } from "@tiptap/core";
-
+import Hisotry from "@tiptap/extension-history"
 import Document from "@tiptap/extension-document";
 import Paragraph from "@tiptap/extension-paragraph";
 import Text from "@tiptap/extension-text";
@@ -191,7 +191,7 @@ export default {
 
       if (webrtcEnabled) {
         this.ydoc = new Y.Doc();
-        const url = `http://localhost:8080/?documentName=${documentName}&documentPassword=${documentPassword}`
+        const url = `https://sebtota.github.io/TipTapSN?documentName=${documentName}&documentPassword=${documentPassword}`
         
         // Do not show the sharing URL to clients, only to the host
         if (url !== window.location.href) {
@@ -246,6 +246,8 @@ export default {
             },
           })
         );
+      } else {
+        extensions.push(Hisotry)
       }
 
       this.editor = new Editor({
