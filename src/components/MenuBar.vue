@@ -18,6 +18,10 @@ export default {
       type: Object,
       required: true,
     },
+    tiptap: {
+      type: Object,
+      required: true
+    }
   },
   data() {
     return {
@@ -151,6 +155,20 @@ export default {
           icon: 'arrow-go-forward-line',
           title: 'Redo',
           action: () => this.editor.chain().focus().redo().run(),
+        },
+        {
+          type: 'divider',
+        },
+        {
+          icon: 'file-cloud-line',
+          title: 'Share Note',
+          action: () => { console.log('testing'); this.tiptap.setupWebrtc() },
+        },
+        {
+          icon: 'file-lock-line',
+          title: 'Disconnect',
+          action: () => { this.tiptap.disconnectWebrtc() },
+          isActive: () => { this.tiptap.isConnectedWebrtc() },
         },
       ],
     }
