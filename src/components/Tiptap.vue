@@ -12,7 +12,7 @@
 import { EditorContent } from "@tiptap/vue-2";
 // import StarterKit from '@tiptap/starter-kit'
 import { Editor } from "@tiptap/core";
-import Hisotry from "@tiptap/extension-history"
+import Hisotry from "@tiptap/extension-history";
 import Document from "@tiptap/extension-document";
 import Paragraph from "@tiptap/extension-paragraph";
 import Text from "@tiptap/extension-text";
@@ -28,17 +28,17 @@ import TableCell from "@tiptap/extension-table-cell";
 import TableHeader from "@tiptap/extension-table-header";
 import Image from "@tiptap/extension-image";
 import Blockquote from "@tiptap/extension-blockquote";
-import BulletList from "@tiptap/extension-bullet-list"
-import OrderedList from "@tiptap/extension-ordered-list"
-import ListItem from "@tiptap/extension-list-item"
-import Code from "@tiptap/extension-code"
-import CodeBlock from '@tiptap/extension-code-block'
-import HardBreak from "@tiptap/extension-hard-break"
-import Heading from "@tiptap/extension-heading"
-import HorizontalRule from "@tiptap/extension-horizontal-rule"
-import Bold from "@tiptap/extension-bold"
-import Italics from "@tiptap/extension-italic"
-import Strike from "@tiptap/extension-strike"
+import BulletList from "@tiptap/extension-bullet-list";
+import OrderedList from "@tiptap/extension-ordered-list";
+import ListItem from "@tiptap/extension-list-item";
+import Code from "@tiptap/extension-code";
+import CodeBlock from "@tiptap/extension-code-block";
+import HardBreak from "@tiptap/extension-hard-break";
+import Heading from "@tiptap/extension-heading";
+import HorizontalRule from "@tiptap/extension-horizontal-rule";
+import Bold from "@tiptap/extension-bold";
+import Italics from "@tiptap/extension-italic";
+import Strike from "@tiptap/extension-strike";
 
 // Standard Notes
 import EditorKit from "@standardnotes/editor-kit";
@@ -56,13 +56,21 @@ export default {
   data() {
     return {
       editor: null,
+      editorKit: null,
+      note_uuid: undefined,
+      skipInsertRawText: false,
+      componentRelay: undefined,
+      ydoc: undefined,
+      provider: undefined,
+      isWebrtcHost: undefined,
+      webrtcHostId: undefined,
     };
   },
 
   methods: {
-    /* 
-    * Boiler plate for adding images to the editor
-    */
+    /*
+     * Boiler plate for adding images to the editor
+     */
     addImage() {
       const url = window.prompt("URL");
       if (url) {
@@ -71,11 +79,12 @@ export default {
     },
 
     /*
-    * Generate a random ID of a specified length
-    */
+     * Generate a random ID of a specified length
+     */
     makeid(length) {
       var result = "";
-      var characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~";
+      var characters =
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~";
       var charactersLength = characters.length;
       for (var i = 0; i < length; i++) {
         result += characters.charAt(
@@ -86,16 +95,30 @@ export default {
     },
 
     /*
-    * Event handler for when an update occurs on the editor
-    */
+     * Event handler for when an update occurs on the editor
+     */
     onEditorUpdate() {
       this.editorKit.onEditorValueChanged(this.editor.getHTML());
+    },
+
+    /*
+     * Get the current users Webrtc Peer ID
+     * @Return string  Webrtc Peer ID
+     */
+    getWebrtcPeerId() {
+      if (!this.provider) return undefined;
+      return this.provider.room.peerId;
     },
 
     configureEditorKit() {
       const delegate = {
         // insertRawText: (text) => {},
         setEditorRawText: (text) => {
+          console.log("set text");
+          if (this.skipInsertRawText) {
+            this.skipInsertRawText = false;
+            return;
+          }
           this.editor.commands.setContent(text);
         },
         // getCurrentLineText: () => {},
@@ -107,10 +130,30 @@ export default {
         clearUndoHistory: () => {
           this.resetEditor();
         },
-        onNoteLockToggle: (isLocked) => {this.editor.setEditable(!isLocked)},
+        onNoteLockToggle: (isLocked) => {
+          this.editor.setEditable(!isLocked);
+        },
         onNoteValueChange: (note) => {
-          if (this.note_uuid !== null) { this.resetEditor() }  // Need this to close the collaborative editing
-          this.note_uuid = note.uuid;
+          if (this.note_uuid === undefined) {
+            /*
+             * Editor initalized
+             */
+            this.note_uuid = note.uuid;
+          } else if (this.note_uuid === note["uuid"]) {
+            /*
+             * This is needed because a note change is triggered when a user clicks on 'Extensions'
+             * causing the focus to shit back to the editor and the Extension tab never has a chance
+             * to open.
+             */
+            this.skipInsertRawText = true;
+          } else {
+            /*
+             * Handle user switching note while sharing a different note live.
+             * Fixes issue where the new note content is shared with conected peers.
+             */
+            this.note_uuid = note.uuid; // Set new note uuid
+            this.resetEditor(); // Reset editor to remove colab session
+          }
         },
       };
 
@@ -122,14 +165,15 @@ export default {
       this.editorKit.getFileSafe().then((filesafeInstance) => {
         // this.componentRelay is not initalized until onNoteValueChange() is called for the first time
         // DO NOT access it here
-        this.componentRelay = filesafeInstance['extensionBridge']['componentManager']
-      })
+        this.componentRelay =
+          filesafeInstance["extensionBridge"]["componentManager"];
+      });
     },
 
     resetEditor() {
-      this.editor.off(this.onEditorUpdate)
-      this.editor.destroy()
-      this.configureEditor(false)
+      this.editor.off(this.onEditorUpdate);
+      this.editor.destroy();
+      this.configureEditor(false);
     },
 
     configureEditor(webrtcEnabled) {
@@ -139,16 +183,21 @@ export default {
       let editorText = null;
       if (this.editor) {
         editorText = this.editor.getHTML();
-        this.editor.off(this.onEditorUpdate)
+        this.editor.off(this.onEditorUpdate);
       }
 
       const params = new URLSearchParams(window.location.search);
 
-      if (params.get("documentName") && params.get("documentPassword")) {
+      if (
+        params.has("joinSharedSession") &&
+        params.get("joinSharedSession") === "true"
+      ) {
         webrtcEnabled = true;
         documentName = params.get("documentName");
         documentPassword = params.get("documentPassword");
       }
+      
+      this.isWebrtcHost = !(params.has("joinSharedSession") && params.get("joinSharedSession") === "true")
 
       let extensions = [
         Table.configure({
@@ -191,45 +240,90 @@ export default {
 
       if (webrtcEnabled) {
         this.ydoc = new Y.Doc();
-        const url = `https://sebtota.github.io/TipTapSN/?documentName=${documentName}&documentPassword=${documentPassword}`
-        
-        // Do not show the sharing URL to clients, only to the host
-        if (url !== window.location.href) {
-          // Host
-          this.isWebrtcHost = true
-          console.log(url)
-          alert(url)
-        } else {
-          // Client
-          this.isWebrtcHost = false
-        }
+        const url = `https://sebtota.github.io/TipTapSN/?joinSharedSession=true&documentName=${documentName}&documentPassword=${documentPassword}`;
 
         this.provider = new WebrtcProvider(documentName, this.ydoc, {
           password: documentPassword,
         });
 
-          /*
-          * WebRTC clients (non-hosts) should remember the hosts unique ID to determine when the host has left the room.
-          * On each subsequent `peers` event, they should check to see if that unique ID has left. If so, the host has left the room.
-          */
-        this.provider.on('peers', (data) => {
-          console.log('peers')
-          const removed = data['removed']
-          //const added = data['addeed']
-          const webrtcPeers = data['webrtcPeers']
-          //const bcPeers = data['bcPeers']
-         
-          if (!this.isWebrtcHost && this.webrtcHostId === undefined) {
-            // Client has just joined
-            this.webrtcHostId = webrtcPeers[0]  
-          } else if (!this.isWebrtcHost) {
-            // Client should check if host has left
-            if (removed.includes(this.webrtcHostId)) {
-              this.editor.setEditable(false);
-              alert('Host disconnected. Document is no longer editable.')
+        /*
+         * TODO: There must be a better way of checking this. Wait until the current client has connected to the WebRTC room.
+         */
+        // eslint-disable-next-line no-inner-declarations
+        const waitToConnect = () => {
+          if (this.provider.connected === false) {
+            console.log("waiting to connect to WebRTC room");
+            window.setTimeout(
+              waitToConnect,
+              100
+            ); /* this checks the flag every 100 milliseconds*/
+          } else {
+            // User connected to room
+            if (this.isWebrtcHost) {
+              this.webrtcHostId = this.provider["room"]["peerId"];
             }
+            
+            /*
+             * WebRTC clients (non-hosts) should remember the hosts unique ID to determine when the host has left the room.
+             * On each subsequent `peers` event, they should check to see if that unique ID has left. If so, the host has left the room.
+             */
+            this.provider.on("peers", (data) => {
+              console.log("peers");
+              const removed = data["removed"];
+              const added = data["added"];
+              // const webrtcPeers = data["webrtcPeers"];
+              //const bcPeers = data['bcPeers']
+
+              for (let i = 0; i < added.length; i++) {
+                const rtcId = added[i];
+                const rtcConns = this.provider["room"]["webrtcConns"];
+
+                if (this.webrtcHostId === undefined) {
+                    console.log('receiving host id')
+                    rtcConns.get(rtcId).peer.on("data", (message) => {
+                      console.log(`The message: ${message}`);
+                      try {
+                        const jsonMessage = JSON.parse(message);
+                        if ('roomHostId' in jsonMessage) {
+                          this.webrtcHostId = jsonMessage['roomHostId']
+                          console.log(`received room host id: ${this.webrtcHostId}`)
+                        }
+                      } catch (_) { _ }
+                    });
+                  } 
+
+                rtcConns.get(rtcId).peer.on("connect", () => {
+                  /*
+                  * Either listen for peers to make you aware of who the host is, or spread the message to your connected peers of who the host is.
+                  */
+                 console.log('user is connected')
+                  if (this.webrtcHostId !== undefined) {
+                    console.log(`sending host id: ${this.webrtcHostId}`)
+                    rtcConns
+                    .get(rtcId)
+                    .peer.send(
+                      JSON.stringify({ roomHostId: this.webrtcHostId })
+                    );
+                  }                  
+                });
+              }
+
+              if (!this.isWebrtcHost) {
+                // Client should check if host has left
+                if (removed.includes(this.webrtcHostId)) {
+                  this.editor.setEditable(false);
+                  alert("Host disconnected. Document is no longer editable.");
+                }
+              }
+            });
           }
-        })
+        };
+        waitToConnect();
+
+        // Do not show the sharing URL to clients, only to the host
+        if (this.isWebrtcHost) {
+          console.log(url);
+        }
 
         extensions.push(
           Collaboration.configure({
@@ -247,7 +341,7 @@ export default {
           })
         );
       } else {
-        extensions.push(Hisotry)
+        extensions.push(Hisotry);
       }
 
       this.editor = new Editor({
@@ -255,7 +349,7 @@ export default {
         autofocus: true,
       });
       window.editor = this.editor;
-      this.editor.on('update', this.onEditorUpdate)
+      this.editor.on("update", this.onEditorUpdate);
 
       if (editorText) {
         this.editor.commands.setContent(editorText);
@@ -269,12 +363,12 @@ export default {
     },
 
     disconnectWebrtc() {
-      this.provider.disconnect();
+      if (this.provider) this.provider.destroy();
     },
 
     connectWebrtc() {
-      this.provider.connect();
-    }
+      if (this.provider) this.provider.connect();
+    },
   },
 
   mounted() {
@@ -284,7 +378,7 @@ export default {
 
   beforeDestroy() {
     this.editor.destroy();
-    this.provider.destroy();
+    if (this.provider) this.provider.destroy();
   },
 };
 </script>
