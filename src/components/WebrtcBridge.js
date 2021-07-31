@@ -93,7 +93,7 @@ export default class WebrtcBridge {
       */
       if (this.webrtcHostId === undefined) {
         console.log("Listening for host id message");
-        rtcConns.get(rtcId).peer.on("data", this.webrtcHostIdMessageListener);
+        rtcConns.get(rtcId).peer.on("data", (message) => {this.webrtcHostIdMessageListener(message)});
       }
 
       rtcConns.get(rtcId).peer.on("connect", () => {
@@ -115,8 +115,7 @@ export default class WebrtcBridge {
     */
     if (!this.isWebrtcHost) {
       if (removed.includes(this.webrtcHostId)) {
-        this.editor.setEditable(false);
-        alert("Host disconnected. Document is no longer editable.");
+        alert("Host disconnected. Document is no longer being saved by the host.");
       }
     }
   }
