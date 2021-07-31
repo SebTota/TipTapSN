@@ -162,13 +162,13 @@ export default {
         {
           icon: 'file-cloud-line',
           title: 'Share Note',
-          action: () => { console.log('testing'); this.tiptap.setupWebrtc() },
+          action: () => { this.tiptap.setupWebrtc() },
         },
         {
           icon: 'file-lock-line',
           title: 'Disconnect',
           action: () => { this.tiptap.disconnectWebrtc() },
-          isActive: () => { this.tiptap.isConnectedWebrtc() },
+          isDisabled: () => { this.tiptap.webrtcConnected() },
         },
       ],
     }

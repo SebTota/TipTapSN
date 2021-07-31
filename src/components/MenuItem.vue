@@ -1,5 +1,6 @@
 <template>
   <button
+    :disabled="isDisabled()"
     class="menu-item"
     :class="{ 'is-active': isActive ? isActive(): null }"
     @click="action"
@@ -33,6 +34,11 @@ export default {
       type: Function,
       default: null,
     },
+
+    isDisabled: {
+      type: Function,
+      default: () => {return false}
+    }
   },
 }
 </script>

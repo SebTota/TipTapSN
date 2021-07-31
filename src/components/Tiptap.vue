@@ -1,8 +1,6 @@
 <template>
   <div class="editor" v-if="editor">
-    <button @click="setupWebrtc">Share Document Live</button>
-    <button @click="disconnectWebrtc">Disconnect</button>
-    <menu-bar class="editor__header" :editor="editor" :tiptap="tiptap" />
+    <menu-bar class="editor__header" :editor="editor" :tiptap="tiptap"/>
     <editor-content class="editor__content" :editor="editor" />
   </div>
 </template>
@@ -41,9 +39,8 @@ import Strike from "@tiptap/extension-strike";
 // Standard Notes
 import EditorKit from "@standardnotes/editor-kit";
 
-import * as Y from "yjs";
-import { WebrtcProvider } from "y-webrtc";
 import MenuBar from "./MenuBar.vue";
+import WebrtcBridge from './WebrtcBridge.js'
 
 export default {
   components: {
@@ -53,61 +50,21 @@ export default {
 
   data() {
     return {
-      tiptap: null,
+      tiptap: undefined,
       editor: null,
       editorKit: null,
       note_uuid: undefined,
       skipInsertRawText: false,
-      ydoc: undefined,
-      provider: undefined,
-      isWebrtcHost: undefined,
-      webrtcHostId: undefined,
+      webrtcBridge: undefined
     };
   },
 
   methods: {
     /*
-     * Boiler plate for adding images to the editor
-     */
-    addImage() {
-      const url = window.prompt("URL");
-      if (url) {
-        this.editor.chain().focus().setImage({ src: url }).run();
-      }
-    },
-
-    /*
-     * Generate a random string of a specified length
-     * @param   Int     The requested length of the random string
-     * @return  String  A random string of a specified length
-     */
-    makeid(length) {
-      var result = "";
-      var characters =
-        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~";
-      var charactersLength = characters.length;
-      for (var i = 0; i < length; i++) {
-        result += characters.charAt(
-          Math.floor(Math.random() * charactersLength)
-        );
-      }
-      return result;
-    },
-
-    /*
      * Event handler for when an update occurs on the editor
      */
     onEditorUpdate() {
       this.editorKit.onEditorValueChanged(this.editor.getHTML());
-    },
-
-    /*
-     * Get the current users Webrtc Peer ID
-     * @Return string  Webrtc Peer ID
-     */
-    getWebrtcPeerId() {
-      if (!this.provider) return undefined;
-      return this.provider.room.peerId;
     },
 
     configureEditorKit() {
@@ -128,7 +85,7 @@ export default {
         // insertElement: (element, inVicinityOfElement, insertionType) => {},
         // preprocessElement: (element) => {},
         clearUndoHistory: () => {
-          this.resetEditor();
+          this.configureEditor();
         },
         onNoteLockToggle: (isLocked) => {
           this.editor.setEditable(!isLocked);
@@ -152,7 +109,7 @@ export default {
              * Fixes issue where the new note content is shared with conected peers.
              */
             this.note_uuid = note.uuid; // Set new note uuid
-            this.resetEditor(); // Reset editor to remove colab session
+            this.configureEditor(); // Reset editor to remove colab session
           }
         },
       };
@@ -163,105 +120,39 @@ export default {
       });
     },
 
-    resetEditor() {
-      this.editor.off(this.onEditorUpdate);
-      this.editor.destroy();
-      this.configureEditor(false);
-    },
-
-    /*
-    * Event handler used to listen for new data events that contain the hosts WebRTC userId.
-    * It is necessary to know the hosts userId to know when the host has disconnected from the room.
-    */
-    webrtcHostIdMessageListener(message) {
-      try {
-              const jsonMessage = JSON.parse(message);
-              if ("roomHostId" in jsonMessage) {
-                this.webrtcHostId = jsonMessage["roomHostId"];
-                console.log(`Received room host id: ${this.webrtcHostId}`);
-              }
-            } catch (_) {
-              _;
-            }
-    },
-
-    /*
-    * Event handles used to keep track of users in the webRTC room and to make sure all the users know who the host is
-    */
-    peerChangeEventHandler(data) {
-      console.log("peers");
-      const removed = data["removed"];
-      const added = data["added"];
-      // const webrtcPeers = data["webrtcPeers"];
-      //const bcPeers = data['bcPeers']
-
-      for (let i = 0; i < added.length; i++) {
-        const rtcId = added[i];
-        const rtcConns = this.provider["room"]["webrtcConns"];
-
-        /*
-        * Client only (not host): Listen for messages to determine which user inside of the room is the host
-        */
-        if (this.webrtcHostId === undefined) {
-          console.log("Listening for host id message");
-          rtcConns.get(rtcId).peer.on("data", this.webrtcHostIdMessageListener);
-        }
-
-        rtcConns.get(rtcId).peer.on("connect", () => {
-          /*
-           * Send a message to the new user containing the meetings host's hostId
-           */
-          console.log("New user has connected");
-          if (this.webrtcHostId !== undefined) {
-            console.log(`Sending hostId to new user`);
-            rtcConns
-              .get(rtcId)
-              .peer.send(JSON.stringify({ roomHostId: this.webrtcHostId }));
-          }
-        });
-      }
-
-      /*
-      * Client only (not host): Every time a user leaves the room, check to make sure it is not the host who has left. 
-      */
-      if (!this.isWebrtcHost) {
-        if (removed.includes(this.webrtcHostId)) {
-          this.editor.setEditable(false);
-          alert("Host disconnected. Document is no longer editable.");
-        }
-      }
-    },
-
     /*
     * Present the meeting URL to host
     */
-    presentSharingUrl(url) {
-      console.log(url)
+    presentSharingUrl() {
+      console.log(this.webrtcBridge.getShareUrl())
     },
 
-    configureEditor(webrtcEnabled) {
-      let documentName = this.makeid(64);
-      let documentPassword = this.makeid(64);
+    presentSharingDisconnected() {
+      console.log('Disonnected from WebRTC')
+    },
 
-      const params = new URLSearchParams(window.location.search);
-      this.isWebrtcHost = !(
-        params.has("joinSharedSession") &&
-        params.get("joinSharedSession") === "true"
-      );
+    presentSharingNotStarted() {
+      console.log('Sharing was already disabled')
+    },
 
-      if (
-        params.has("joinSharedSession") &&
-        params.get("joinSharedSession") === "true"
-      ) {
-        webrtcEnabled = true;
-        documentName = params.get("documentName");
-        documentPassword = params.get("documentPassword");
-      }
-
+    configureEditor(webrtcEnabled=false) {
       let editorText = null;
       if (this.editor) {
         editorText = this.editor.getHTML();
-        this.editor.off(this.onEditorUpdate); // Remove any previously initalized event handlers
+        this.editor.off(this.onEditorUpdate);
+        this.editor.destroy();
+        if (this.webrtcBridge) this.webrtcBridge.disconnectWebrtc();
+        this.webrtcBridge = undefined;
+      }
+
+      const params = new URLSearchParams(window.location.search);
+
+      let documentName;
+      let documentPassword;
+      if (params.has("joinSharedSession") && params.get("joinSharedSession") === "true") {
+        webrtcEnabled = true;
+        documentName = params.get("documentName");
+        documentPassword = params.get("documentPassword");
       }
 
       let extensions = [
@@ -304,49 +195,21 @@ export default {
       ];
 
       if (webrtcEnabled) {
-        this.ydoc = new Y.Doc();
-        const url = `https://sebtota.github.io/TipTapSN/?joinSharedSession=true&documentName=${documentName}&documentPassword=${documentPassword}`;
+        this.webrtcBridge = new WebrtcBridge(documentName, documentPassword)
 
-        this.provider = new WebrtcProvider(documentName, this.ydoc, {
-          password: documentPassword,
-        });
-
-        /*
-         * TODO: There must be a better way of checking this. Wait until the current client has connected to the WebRTC room.
-         */
-        // eslint-disable-next-line no-inner-declarations
-        const waitToConnect = () => {
-          if (this.provider.connected === false) {
-            console.log("waiting to connect to WebRTC room");
-            window.setTimeout(
-              waitToConnect,
-              100
-            ); /* this checks the flag every 100 milliseconds*/
-          } else {
-            // User connected to room
-            if (this.isWebrtcHost) {
-              this.webrtcHostId = this.provider["room"]["peerId"];  // Set the hostId to the current users id
-              this.presentSharingUrl(url) // Present the sharing URL to invite others
-            }
-
-            /*
-             * WebRTC clients (non-hosts) should remember the hosts unique ID to determine when the host has left the room.
-             * On each subsequent `peers` event, they should check to see if that unique ID has left. If so, the host has left the room.
-             */
-            this.provider.on("peers", this.peerChangeEventHandler);
-          }
-        };
-        waitToConnect();
+        this.webrtcBridge.waitToConnect().then(() => {
+          this.presentSharingUrl()
+        })
 
         extensions.push(
           Collaboration.configure({
-            document: this.ydoc,
+            document: this.webrtcBridge.ydoc,
           })
         );
 
         extensions.push(
           CollaborationCursor.configure({
-            provider: this.provider,
+            provider: this.webrtcBridge.provider,
             user: {
               name: "Test User",
               color: "#" + Math.floor(Math.random() * 16777215).toString(16),
@@ -370,29 +233,34 @@ export default {
     },
 
     setupWebrtc() {
-      if (this.provider) this.provider.destroy();
-      if (this.editor) this.editor.destroy();
-      this.configureEditor(true);
-    },
-
-    isConnectedWebrtc() {
-      if (this.provider === undefined) return false;
-      return this.provider.connected;
+      if (this.webrtcBridge && this.webrtcBridge.provider && this.editor) {
+         this.presentSharingUrl()
+      } else {
+        this.configureEditor(true);  
+      }
     },
 
     disconnectWebrtc() {
-      if (this.provider) this.provider.destroy();
+      if (this.webrtcBridge) this.webrtcBridge.disconnectWebrtc();
+      this.presentSharingDisconnected()
+      this.configureEditor();
+    },
+
+    webrtcConnected() {
+      if (this.webrtcBridge) return this.webrtcBridge.isConnectedWebrtc();
+      else return false
     },
   },
 
   mounted() {
+    this.tiptap = this;
     this.configureEditorKit();
-    this.configureEditor(false);
+    this.configureEditor();
   },
 
   beforeDestroy() {
+    if (this.webrtcBridge && this.webrtcBridge.provider) this.webrtcBridge.provider.destroy();
     this.editor.destroy();
-    if (this.provider) this.provider.destroy();
   },
 };
 </script>
