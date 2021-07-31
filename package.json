@@ -5,6 +5,7 @@
   "scripts": {
     "serve": "vue-cli-service serve",
     "build": "vue-cli-service build",
+    "postbuild": "cp ./src/ext.json ./dist/ext.json",
     "lint": "vue-cli-service lint"
   },
   "dependencies": {
