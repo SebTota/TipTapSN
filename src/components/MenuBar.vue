@@ -180,8 +180,17 @@ export default {
 .divider {
   width: 2px;
   height: 1.25rem;
-  background-color: rgba(black, 0.1);
+  background-color: var(--sn-stylekit-neutral-contrast-color);
   margin-left: 0.5rem;
   margin-right: 0.75rem;
+}
+</style>
+
+<style lang="scss">
+.menu-item * {
+  color: var(--sn-stylekit-foreground-color);
+}
+.menu-item .is-active * {
+  color: var(--sn-stylekit-background-color);
 }
 </style>

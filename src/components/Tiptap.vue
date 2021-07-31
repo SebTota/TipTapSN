@@ -35,6 +35,7 @@ import HorizontalRule from "@tiptap/extension-horizontal-rule";
 import Bold from "@tiptap/extension-bold";
 import Italics from "@tiptap/extension-italic";
 import Strike from "@tiptap/extension-strike";
+import { SKAlert } from 'sn-stylekit';
 
 // Standard Notes
 import EditorKit from "@standardnotes/editor-kit";
@@ -121,19 +122,73 @@ export default {
     },
 
     /*
+    * Copies the specified string to the clipboard
+    */
+    copyStringToClipboard(str) {
+      if (typeof str !== 'string') return
+      const tempElem = document.createElement('textarea')
+      tempElem.value = str;
+      // Hide element
+      tempElem.style.position = 'absolute';
+      tempElem.style.left = '-999px';
+      document.body.appendChild(tempElem);
+      tempElem.select();
+      document.execCommand('copy');
+      document.body.removeChild(tempElem);
+    },
+
+    /*
     * Present the meeting URL to host
     */
     presentSharingUrl() {
       console.log(this.webrtcBridge.getShareUrl())
-      alert(this.webrtcBridge.getShareUrl())
+      // alert(this.webrtcBridge.getShareUrl())
+      this.copyStringToClipboard(this.webrtcBridge.getShareUrl())
+
+      const alert = new SKAlert({
+        title: "Share link copied to clipboard",
+        text: "The share link was added to your clipboard. Share it with others to allow them to edit your note.",
+        buttons: [
+          {
+            text: 'Close',
+            style: 'neutral',
+            action: function() {},
+          },
+        ]
+      });
+      alert.present();
     },
 
     presentSharingDisconnected() {
       console.log('Disonnected from WebRTC')
+      const alert = new SKAlert({
+        title: "Stopped sharing note.",
+        text: "Sharing for this note is now disabled.",
+        buttons: [
+          {
+            text: 'Close',
+            style: 'neutral',
+            action: function() { },
+          },
+        ]
+      });
+      alert.present();
     },
 
     presentSharingNotStarted() {
-      console.log('Sharing was already disabled')
+      console.log('Did not disconnect from WebRTC. WebRTC was not enabled.')
+      const alert = new SKAlert({
+        title: "Sharing for this note was not enabled.",
+        text: "Sharing for this note was already turned off.",
+        buttons: [
+          {
+            text: 'Close',
+            style: 'neutral',
+            action: function() { },
+          },
+        ]
+      });
+      alert.present();
     },
 
     configureEditor(webrtcEnabled=false) {
@@ -242,6 +297,11 @@ export default {
     },
 
     disconnectWebrtc() {
+      // Check if WebRTC is even enabled
+      if (!this.webrtcBridge || !this.webrtcBridge.isConnectedWebrtc()) {
+        this.presentSharingNotStarted()
+        return
+      }
       if (this.webrtcBridge) this.webrtcBridge.disconnectWebrtc();
       this.presentSharingDisconnected()
       this.configureEditor();
@@ -271,7 +331,8 @@ export default {
   height: 100%;
   display: flex;
   flex-direction: column;
-  color: #0d0d0d;
+  background: var(--sn-stylekit-background-color);
+  color: var(--sn-stylekit-foreground-color);
   &__header {
     display: flex;
     align-items: center;
