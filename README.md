@@ -3,7 +3,7 @@ Note: This editor is still in development and should only be used for testing an
 
 TipTapSN is a collaborative note editor built for [Standard Notes](https://standardnotes.com) using the [TipTap](https://www.tiptap.dev) WYSIWYG editor. The key benefit of TipTapSN is the collaborative feature which allows you to work on a note with multiple users.
 
-TipTapSN is not supported in the mobile StandardNotes application at this time.
+TipTapSN is not supported in the iOS mobile StandardNotes application at this time.
 
 ## Sharing
 
