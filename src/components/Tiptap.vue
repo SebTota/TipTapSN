@@ -125,6 +125,7 @@ export default {
     */
     presentSharingUrl() {
       console.log(this.webrtcBridge.getShareUrl())
+      alert(this.webrtcBridge.getShareUrl())
     },
 
     presentSharingDisconnected() {
