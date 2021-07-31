@@ -14,7 +14,7 @@ TipTapSN is not supported in the mobile StandardNotes application at this time.
 * Users are notified when the host leaves
 
 ### Possible Downsides
-* Because you can only edit your own note history, you can not backtrack an edit if one of the users deletes the entire note. 
+* Because you can only edit your own note history, you can not backtrack an edit made by another user.
     * This is partially mitigated by Standard Notes History feature, but this only takes snapshots at certain intervals. Please be aware of this and only share your notes with individuals you trust.
 * WebRTC has been shown to have the ability to [leak your IP address](https://ieeexplore.ieee.org/document/8167801) even if you are using a VPN. You can check if your browser and/or VPN leaks your IP address online. 
 
