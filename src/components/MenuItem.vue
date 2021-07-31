@@ -47,7 +47,6 @@ export default {
 .menu-item {
   width: 1.75rem;
   height: 1.75rem;
-  color: #0D0D0D;
   border: none;
   background-color: transparent;
   border-radius: 0.4rem;

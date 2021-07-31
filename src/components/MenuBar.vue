@@ -187,10 +187,10 @@ export default {
 </style>
 
 <style lang="scss">
-.menu-item * {
+.menu-item {
   color: var(--sn-stylekit-foreground-color);
 }
-.menu-item .is-active * {
+.menu-item .is-active {
   color: var(--sn-stylekit-background-color);
 }
 </style>
