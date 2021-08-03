@@ -1,7 +1,27 @@
 <template>
   <div class="editor" v-if="editor">
-    <menu-bar class="editor__header" :editor="editor" :tiptap="tiptap"/>
+    <menu-bar class="editor__header" :editor="editor" :tiptap="tiptap" />
     <editor-content class="editor__content" :editor="editor" />
+    <div class="editor__footer">
+      <div
+        :class="`editor__status editor__status--${tiptap.isWebrtcConnected()}`"
+      >
+        <template v-if="tiptap.isWebrtcConnected() === true">
+          {{ webrtcBridge.getConnectedUsers().length }} user{{
+            webrtcBridge.getConnectedUsers().length === 1 ? "" : "s"
+          }}
+          online</template
+        >
+        <template v-else> Offline </template>
+      </div>
+      <div class="editor__name">
+        <template v-if="tiptap.isWebrtcConnected() === true">
+          <button @click="tiptap.changeSharingUserName()">
+            {{ webrtcBridge.getUserName() }}
+          </button>
+        </template>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -13,8 +33,6 @@ import Document from "@tiptap/extension-document";
 import Paragraph from "@tiptap/extension-paragraph";
 import Text from "@tiptap/extension-text";
 import Dropcursor from "@tiptap/extension-dropcursor";
-import Collaboration from "@tiptap/extension-collaboration";
-import CollaborationCursor from "@tiptap/extension-collaboration-cursor";
 import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
 import Highlight from "@tiptap/extension-highlight";
@@ -35,13 +53,14 @@ import HorizontalRule from "@tiptap/extension-horizontal-rule";
 import Bold from "@tiptap/extension-bold";
 import Italics from "@tiptap/extension-italic";
 import Strike from "@tiptap/extension-strike";
-import { SKAlert } from 'sn-stylekit';
+import { SKAlert } from "sn-stylekit";
+import SKPrompt from "./SKPrompt.js";
 
 // Standard Notes
 import EditorKit from "@standardnotes/editor-kit";
 
 import MenuBar from "./MenuBar.vue";
-import WebrtcBridge from './WebrtcBridge.js'
+import WebrtcBridge from "./WebrtcBridge.js";
 
 export default {
   components: {
@@ -56,17 +75,23 @@ export default {
       editorKit: null,
       note_uuid: undefined,
       skipInsertRawText: false,
-      webrtcBridge: undefined
+      webrtcBridge: undefined,
     };
   },
 
+    mounted() {
+    this.tiptap = this;
+    this.configureEditorKit();
+    this.configureEditor();
+  },
+
+  beforeDestroy() {
+    if (this.webrtcBridge && this.webrtcBridge.provider)
+      this.webrtcBridge.provider.destroy();
+    this.editor.destroy();
+  },
+
   methods: {
-    /*
-     * Event handler for when an update occurs on the editor
-     */
-    onEditorUpdate() {
-      this.editorKit.onEditorValueChanged(this.editor.getHTML());
-    },
 
     configureEditorKit() {
       const delegate = {
@@ -121,77 +146,7 @@ export default {
       });
     },
 
-    /*
-    * Copies the specified string to the clipboard
-    */
-    copyStringToClipboard(str) {
-      if (typeof str !== 'string') return
-      const tempElem = document.createElement('textarea')
-      tempElem.value = str;
-      // Hide element
-      tempElem.style.position = 'absolute';
-      tempElem.style.left = '-999px';
-      document.body.appendChild(tempElem);
-      tempElem.select();
-      document.execCommand('copy');
-      document.body.removeChild(tempElem);
-    },
-
-    /*
-    * Present the meeting URL to host
-    */
-    presentSharingUrl() {
-      console.log(this.webrtcBridge.getShareUrl())
-      // alert(this.webrtcBridge.getShareUrl())
-      this.copyStringToClipboard(this.webrtcBridge.getShareUrl())
-
-      const alert = new SKAlert({
-        title: "Share link copied to clipboard",
-        text: "The share link was added to your clipboard. Share it with others to allow them to edit your note.",
-        buttons: [
-          {
-            text: 'Close',
-            style: 'neutral',
-            action: function() {},
-          },
-        ]
-      });
-      alert.present();
-    },
-
-    presentSharingDisconnected() {
-      console.log('Disonnected from WebRTC')
-      const alert = new SKAlert({
-        title: "Stopped sharing note.",
-        text: "Sharing for this note is now disabled.",
-        buttons: [
-          {
-            text: 'Close',
-            style: 'neutral',
-            action: function() { },
-          },
-        ]
-      });
-      alert.present();
-    },
-
-    presentSharingNotStarted() {
-      console.log('Did not disconnect from WebRTC. WebRTC was not enabled.')
-      const alert = new SKAlert({
-        title: "Sharing for this note was not enabled.",
-        text: "Sharing for this note was already turned off.",
-        buttons: [
-          {
-            text: 'Close',
-            style: 'neutral',
-            action: function() { },
-          },
-        ]
-      });
-      alert.present();
-    },
-
-    configureEditor(webrtcEnabled=false) {
+    configureEditor(webrtcEnabled = false) {
       let editorText = null;
       if (this.editor) {
         editorText = this.editor.getHTML();
@@ -205,7 +160,10 @@ export default {
 
       let documentName;
       let documentPassword;
-      if (params.has("joinSharedSession") && params.get("joinSharedSession") === "true") {
+      if (
+        params.has("joinSharedSession") &&
+        params.get("joinSharedSession") === "true"
+      ) {
         webrtcEnabled = true;
         documentName = params.get("documentName");
         documentPassword = params.get("documentPassword");
@@ -251,27 +209,13 @@ export default {
       ];
 
       if (webrtcEnabled) {
-        this.webrtcBridge = new WebrtcBridge(documentName, documentPassword)
+        this.webrtcBridge = new WebrtcBridge(documentName, documentPassword);
 
         this.webrtcBridge.waitToConnect().then(() => {
-          this.presentSharingUrl()
-        })
+          this.presentSharingUrl();
+        });
 
-        extensions.push(
-          Collaboration.configure({
-            document: this.webrtcBridge.ydoc,
-          })
-        );
-
-        extensions.push(
-          CollaborationCursor.configure({
-            provider: this.webrtcBridge.provider,
-            user: {
-              name: "Test User",
-              color: "#" + Math.floor(Math.random() * 16777215).toString(16),
-            },
-          })
-        );
+        extensions = extensions.concat(this.webrtcBridge.getExtensions());
       } else {
         extensions.push(Hisotry);
       }
@@ -288,41 +232,133 @@ export default {
       }
     },
 
+    /*
+     * Event handler for when an update occurs on the editor
+     */
+    onEditorUpdate() {
+      this.editorKit.onEditorValueChanged(this.editor.getHTML());
+    },
+
+    /*
+     * Copies the specified string to the clipboard
+     */
+    copyStringToClipboard(str) {
+      if (typeof str !== "string") return;
+      const tempElem = document.createElement("textarea");
+      tempElem.value = str;
+      // Hide element
+      tempElem.style.position = "absolute";
+      tempElem.style.left = "-999px";
+      document.body.appendChild(tempElem);
+      tempElem.select();
+      document.execCommand("copy");
+      document.body.removeChild(tempElem);
+    },
+
+    /*
+     * Present the meeting URL to host
+     */
+    presentSharingUrl() {
+      console.log(this.webrtcBridge.getShareUrl());
+      // alert(this.webrtcBridge.getShareUrl())
+      this.copyStringToClipboard(this.webrtcBridge.getShareUrl());
+
+      const alert = new SKAlert({
+        title: "Share link copied to clipboard",
+        text: "The share link was added to your clipboard. Share it with others to allow them to edit your note.",
+        buttons: [
+          {
+            text: "Close",
+            style: "neutral",
+            action: function () {},
+          },
+        ],
+        prompt: {
+          text: "Enter your name:",
+          placeholder: "Test User",
+        },
+      });
+      alert.present();
+    },
+
+    presentSharingDisconnected() {
+      console.log("Disonnected from WebRTC");
+      const alert = new SKAlert({
+        title: "Stopped sharing note.",
+        text: "Sharing for this note is now disabled.",
+        buttons: [
+          {
+            text: "Close",
+            style: "neutral",
+            action: function () {},
+          },
+        ],
+      });
+      alert.present();
+    },
+
+    presentSharingNotStarted() {
+      console.log("Did not disconnect from WebRTC. WebRTC was not enabled.");
+      const alert = new SKAlert({
+        title: "Sharing for this note was not enabled.",
+        text: "Sharing for this note was already turned off.",
+        buttons: [
+          {
+            text: "Close",
+            style: "neutral",
+            action: function () {},
+          },
+        ],
+      });
+      alert.present();
+    },
+
     setupWebrtc() {
       if (this.webrtcBridge && this.webrtcBridge.provider && this.editor) {
-         this.presentSharingUrl()
+        this.presentSharingUrl();
       } else {
-        this.configureEditor(true);  
+        this.configureEditor(true);
       }
     },
 
     disconnectWebrtc() {
       // Check if WebRTC is even enabled
       if (!this.webrtcBridge || !this.webrtcBridge.isConnectedWebrtc()) {
-        this.presentSharingNotStarted()
-        return
+        this.presentSharingNotStarted();
+        return;
       }
       if (this.webrtcBridge) this.webrtcBridge.disconnectWebrtc();
-      this.presentSharingDisconnected()
+      this.presentSharingDisconnected();
       this.configureEditor();
     },
 
-    webrtcConnected() {
-      if (this.webrtcBridge) return this.webrtcBridge.isConnectedWebrtc();
-      else return false
+    isWebrtcConnected() {
+      return this.webrtcBridge && this.webrtcBridge.isConnectedWebrtc();
     },
+
+    /*
+    * Change the name of the current user in the collaborative document
+    * @param  function  Optional callback function that is to be run IF and WHEN the 
+    *   user changes the name
+    */
+    changeSharingUserName(onChange = undefined) {
+      const alert = new SKPrompt({
+        title: "Set Share Name",
+        text: "Enter the name you would like others to see your edits as.",
+        placeholder: "User",
+        submitCallback: (newName) => {
+          // Set default name if user clicks ok without setting a name
+          if (newName === "") newName = "User";
+          if (this.webrtcBridge) this.webrtcBridge.changeName(newName)
+          this.editor.chain().focus().user(this.webrtcBridge.getUser()).run()
+          onChange && onChange()
+        },
+        dismissCallback: () => {},
+      });
+      alert.present();
+    }
   },
 
-  mounted() {
-    this.tiptap = this;
-    this.configureEditorKit();
-    this.configureEditor();
-  },
-
-  beforeDestroy() {
-    if (this.webrtcBridge && this.webrtcBridge.provider) this.webrtcBridge.provider.destroy();
-    this.editor.destroy();
-  },
 };
 </script>
 
@@ -339,7 +375,8 @@ export default {
     flex: 0 0 auto;
     flex-wrap: wrap;
     padding: 0.25rem;
-    border-bottom: 3px solid #0d0d0d;
+    border-bottom: 3px solid
+      var(--sn-stylekit-secondary-contrast-foreground-color);
   }
   &__content {
     padding: 16px 18px;
@@ -347,6 +384,59 @@ export default {
     overflow-x: hidden;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
+  }
+
+  &__footer {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    white-space: nowrap;
+    border-top: 3px solid #0d0d0d;
+    font-size: 12px;
+    font-weight: 600;
+    color: #0d0d0d;
+    white-space: nowrap;
+  }
+  &__status {
+    display: flex;
+    align-items: center;
+    border-radius: 5px;
+    &::before {
+      content: " ";
+      flex: 0 0 auto;
+      display: inline-block;
+      width: 0.5rem;
+      height: 0.5rem;
+      background: rgba(#0d0d0d, 0.5);
+      border-radius: 50%;
+      margin-right: 0.5rem;
+    }
+
+    &--false::before {
+      background: #616161;
+    }
+    &--true::before {
+      background: #b9f18d;
+    }
+  }
+
+  &__name {
+    button {
+      background: none;
+      border: none;
+      font: inherit;
+      font-size: 12px;
+      font-weight: 600;
+      color: #0d0d0d;
+      border-radius: 0.4rem;
+      padding: 0.25rem 0.5rem;
+      &:hover {
+        color: #fff;
+        background-color: #0d0d0d;
+      }
+    }
   }
 }
 </style>
@@ -363,6 +453,11 @@ body {
 
 #app {
   height: 100%;
+}
+
+.editor__footer {
+  padding: 10px;
+  border-top: 3px solid var(--sn-stylekit-secondary-contrast-foreground-color);
 }
 
 .ProseMirror {
@@ -541,4 +636,3 @@ body {
   cursor: col-resize;
 }
 </style>
-

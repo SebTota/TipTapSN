@@ -168,7 +168,7 @@ export default {
           icon: 'file-lock-line',
           title: 'Disconnect',
           action: () => { this.tiptap.disconnectWebrtc() },
-          isDisabled: () => { this.tiptap.webrtcConnected() },
+          isDisabled: () => { this.tiptap.isWebrtcConnected() },
         },
       ],
     }
