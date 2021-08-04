@@ -94,6 +94,6 @@ export default class SKPrompt {
         this.submit();
       }
 
-      this.element.querySelector(`#sk-prompt-button-close`).focus();
+      this.element.querySelector(`#sk-prompt-input`).focus();
     }
   }

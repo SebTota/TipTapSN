@@ -1,6 +1,5 @@
 <template>
-  <button
-    :disabled="isDisabled()"
+  <button v-if="isRendered()"
     class="menu-item"
     :class="{ 'is-active': isActive ? isActive(): null }"
     @click="action"
@@ -35,9 +34,9 @@ export default {
       default: null,
     },
 
-    isDisabled: {
+    isRendered: {
       type: Function,
-      default: () => {return false}
+      default: () => {return true}
     }
   },
 }

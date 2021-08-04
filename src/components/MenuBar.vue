@@ -163,12 +163,13 @@ export default {
           icon: 'file-cloud-line',
           title: 'Share Note',
           action: () => { this.tiptap.setupWebrtc() },
+          isRendered: () => {  return !this.tiptap.isWebrtcConnected() },
         },
         {
           icon: 'file-lock-line',
           title: 'Disconnect',
           action: () => { this.tiptap.disconnectWebrtc() },
-          isDisabled: () => { this.tiptap.isWebrtcConnected() },
+          isRendered: () => {  return this.tiptap.isWebrtcConnected() },
         },
       ],
     }

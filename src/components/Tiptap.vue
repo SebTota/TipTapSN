@@ -16,6 +16,9 @@
       </div>
       <div class="editor__name">
         <template v-if="tiptap.isWebrtcConnected() === true">
+          <button @click="tiptap.presentSharingUrl()">
+            Sharing Link
+          </button>
           <button @click="tiptap.changeSharingUserName()">
             {{ webrtcBridge.getUserName() }}
           </button>
@@ -160,6 +163,7 @@ export default {
 
       let documentName;
       let documentPassword;
+      let hostId;
       if (
         params.has("joinSharedSession") &&
         params.get("joinSharedSession") === "true"
@@ -167,6 +171,7 @@ export default {
         webrtcEnabled = true;
         documentName = params.get("documentName");
         documentPassword = params.get("documentPassword");
+        hostId = params.get("hostId");
       }
 
       let extensions = [
@@ -209,10 +214,10 @@ export default {
       ];
 
       if (webrtcEnabled) {
-        this.webrtcBridge = new WebrtcBridge(documentName, documentPassword);
+        this.webrtcBridge = new WebrtcBridge(documentName, documentPassword, hostId);
 
         this.webrtcBridge.waitToConnect().then(() => {
-          this.presentSharingUrl();
+          this.webrtcBridge.isHost() && this.presentSharingUrl();
         });
 
         extensions = extensions.concat(this.webrtcBridge.getExtensions());
@@ -260,7 +265,6 @@ export default {
      */
     presentSharingUrl() {
       console.log(this.webrtcBridge.getShareUrl());
-      // alert(this.webrtcBridge.getShareUrl())
       this.copyStringToClipboard(this.webrtcBridge.getShareUrl());
 
       const alert = new SKAlert({
@@ -348,7 +352,7 @@ export default {
         placeholder: "User",
         submitCallback: (newName) => {
           // Set default name if user clicks ok without setting a name
-          if (newName === "") newName = "User";
+          if (newName.trim() === "") newName = "User";
           if (this.webrtcBridge) this.webrtcBridge.changeName(newName)
           this.editor.chain().focus().user(this.webrtcBridge.getUser()).run()
           onChange && onChange()
@@ -403,6 +407,7 @@ export default {
     display: flex;
     align-items: center;
     border-radius: 5px;
+    color: var(--sn-stylekit-foreground-color);
     &::before {
       content: " ";
       flex: 0 0 auto;
@@ -415,10 +420,10 @@ export default {
     }
 
     &--false::before {
-      background: #616161;
+      background: #8a8a8a;
     }
     &--true::before {
-      background: #b9f18d;
+      background: #6efa00;
     }
   }
 
@@ -429,7 +434,7 @@ export default {
       font: inherit;
       font-size: 12px;
       font-weight: 600;
-      color: #0d0d0d;
+      color: var(--sn-stylekit-foreground-color);
       border-radius: 0.4rem;
       padding: 0.25rem 0.5rem;
       &:hover {
