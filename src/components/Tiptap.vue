@@ -100,7 +100,6 @@ export default {
       const delegate = {
         // insertRawText: (text) => {},
         setEditorRawText: (text) => {
-          console.log("set text");
           if (this.skipInsertRawText) {
             this.skipInsertRawText = false;
             return;
@@ -189,6 +188,13 @@ export default {
               },
             };
           },
+          addKeyboardShortcuts() {
+            return {
+              Tab: () => {
+                return this.editor.commands.insertContent('&emsp;')
+              }
+            }
+          }
         }),
         Text,
         Image,
