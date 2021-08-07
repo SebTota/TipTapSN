@@ -1,6 +1,6 @@
 <template>
   <div class="editor" v-if="editor">
-    <menu-bar class="editor__header" :editor="editor" :tiptap="tiptap" />
+    <menu-bar class="editor__header" :editor="editor" :tiptap="tiptap" :webrtcBridge="webrtcBridge" />
     <editor-content class="editor__content" :editor="editor" />
     <div class="editor__footer">
       <div

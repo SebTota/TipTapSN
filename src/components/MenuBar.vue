@@ -21,6 +21,10 @@ export default {
     tiptap: {
       type: Object,
       required: true
+    },
+    webrtcBridge: {
+      type: Object,
+      required: false
     }
   },
   data() {
@@ -169,7 +173,7 @@ export default {
           icon: 'file-lock-line',
           title: 'Disconnect',
           action: () => { this.tiptap.disconnectWebrtc() },
-          isRendered: () => {  return this.tiptap.isWebrtcConnected() },
+          isRendered: () => {  return this.tiptap.isWebrtcConnected() && this.webrtcBridge && this.webrtcBridge.isHost() },
         },
       ],
     }
