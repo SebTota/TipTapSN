@@ -95,7 +95,6 @@ export default {
   },
 
   methods: {
-
     configureEditorKit() {
       const delegate = {
         // insertRawText: (text) => {},
@@ -104,7 +103,7 @@ export default {
             this.skipInsertRawText = false;
             return;
           }
-          this.editor.commands.setContent(text);
+          this.configureEditor(text);
         },
         // getCurrentLineText: () => {},
         // getPreviousLineText: () => {},
@@ -136,8 +135,9 @@ export default {
              * Handle user switching note while sharing a different note live.
              * Fixes issue where the new note content is shared with conected peers.
              */
+            this.webrtcEnabled = false;
             this.note_uuid = note.uuid; // Set new note uuid
-            this.configureEditor(); // Reset editor to remove colab session
+            this.disconnectWebrtc();
           }
         },
       };
@@ -148,14 +148,14 @@ export default {
       });
     },
 
-    configureEditor(webrtcEnabled = false) {
-      let editorText = null;
+    configureEditor(defaultText = undefined) {
+      let editorText = "";
       if (this.editor) {
-        editorText = this.editor.getHTML();
+        if (defaultText) editorText = defaultText
+        else editorText = this.editor.getHTML();
+        
         this.editor.off(this.onEditorUpdate);
         this.editor.destroy();
-        if (this.webrtcBridge) this.webrtcBridge.disconnectWebrtc();
-        this.webrtcBridge = undefined;
       }
 
       const params = new URLSearchParams(window.location.search);
@@ -167,7 +167,7 @@ export default {
         params.has("joinSharedSession") &&
         params.get("joinSharedSession") === "true"
       ) {
-        webrtcEnabled = true;
+        this.webrtcEnabled = true;
         documentName = params.get("documentName");
         documentPassword = params.get("documentPassword");
         hostId = params.get("hostId");
@@ -219,7 +219,7 @@ export default {
         Strike,
       ];
 
-      if (webrtcEnabled) {
+      if (this.webrtcEnabled) {
         this.webrtcBridge = new WebrtcBridge(documentName, documentPassword, hostId);
 
         this.webrtcBridge.waitToConnect().then(() => {
@@ -235,12 +235,9 @@ export default {
       this.editor = new Editor({
         extensions: extensions,
         autofocus: true,
+        content: editorText
       });
       this.editor.on("update", this.onEditorUpdate);
-
-      if (editorText) {
-        this.editor.commands.setContent(editorText);
-      }
     },
 
     /*
@@ -327,17 +324,20 @@ export default {
       if (this.webrtcBridge && this.webrtcBridge.provider && this.editor) {
         this.presentSharingUrl();
       } else {
-        this.configureEditor(true);
+        this.webrtcEnabled = true;
+        this.configureEditor();
       }
     },
 
     disconnectWebrtc() {
+      this.webrtcEnabled = false;
       // Check if WebRTC is even enabled
       if (!this.webrtcBridge || !this.webrtcBridge.isConnectedWebrtc()) {
         this.presentSharingNotStarted();
         return;
       }
       if (this.webrtcBridge) this.webrtcBridge.disconnectWebrtc();
+      this.webrtcBridge = undefined;
       this.presentSharingDisconnected();
       this.configureEditor();
     },
