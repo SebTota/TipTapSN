@@ -374,6 +374,7 @@ export default {
 
 <style lang="scss" scoped>
 .editor {
+  font-family: 'Lato', sans-serif;; 
   height: 100%;
   display: flex;
   flex-direction: column;
