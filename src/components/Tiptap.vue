@@ -1,6 +1,12 @@
 <template>
   <div class="editor" v-if="editor">
-    <menu-bar class="editor__header" :editor="editor" :tiptap="tiptap" :webrtcBridge="webrtcBridge" />
+    <filesafe-modal ref="filesafeModal"/>
+    <menu-bar
+      class="editor__header"
+      :editor="editor"
+      :tiptap="tiptap"
+      :webrtcBridge="webrtcBridge"
+    />
     <editor-content class="editor__content" :editor="editor" />
     <div class="editor__footer">
       <div
@@ -16,9 +22,7 @@
       </div>
       <div class="editor__name">
         <template v-if="tiptap.isWebrtcConnected() === true">
-          <button @click="tiptap.presentSharingUrl()">
-            Sharing Link
-          </button>
+          <button @click="tiptap.presentSharingUrl()">Sharing Link</button>
           <button @click="tiptap.changeSharingUserName()">
             {{ webrtcBridge.getUserName() }}
           </button>
@@ -52,7 +56,6 @@ import Code from "@tiptap/extension-code";
 import CodeBlock from "@tiptap/extension-code-block";
 import HardBreak from "@tiptap/extension-hard-break";
 import Heading from "@tiptap/extension-heading";
-import HorizontalRule from "@tiptap/extension-horizontal-rule";
 import Bold from "@tiptap/extension-bold";
 import Italics from "@tiptap/extension-italic";
 import Strike from "@tiptap/extension-strike";
@@ -61,14 +64,19 @@ import SKPrompt from "./SKPrompt.js";
 
 // Standard Notes
 import EditorKit from "@standardnotes/editor-kit";
+import FilesafeEmbed from "filesafe-embed";
+// eslint-disable-next-line no-unused-vars
+import Filesafe from "filesafe-js";
 
-import MenuBar from "./MenuBar.vue";
+import MenuBar from "./MenuBar/MenuBar.vue";
+import FilesafeModal from "./FilesafeModal.vue"
 import WebrtcBridge from "./WebrtcBridge.js";
 
 export default {
   components: {
     EditorContent,
     MenuBar,
+    FilesafeModal
   },
 
   data() {
@@ -79,46 +87,187 @@ export default {
       note_uuid: undefined,
       skipInsertRawText: false,
       webrtcBridge: undefined,
+      sharingIsEnabled: false,
     };
   },
 
-    mounted() {
+  mounted() {
     this.tiptap = this;
     this.configureEditorKit();
-    this.configureEditor();
   },
 
   beforeDestroy() {
-    if (this.webrtcBridge && this.webrtcBridge.provider)
-      this.webrtcBridge.provider.destroy();
-    this.editor.destroy();
+    this.destroyEditor();
   },
 
   methods: {
-
     configureEditorKit() {
+      if (this.editorKit) {
+        console.log('editor kit already configured. skipping duplicate configuration')
+      } else {
+        console.log('configuring editor kit')
+      }
+
       const delegate = {
-        // insertRawText: (text) => {},
+        insertRawText: (text) => {
+          console.info(JSON.stringiy({
+            type: "Tiptap.EditorKitDelegate.insertRawText",
+            values: {
+              text: text
+            }
+          }))
+
+          this.editor.commands.insertContent(text);
+        },
         setEditorRawText: (text) => {
+          console.info(JSON.stringify({
+            type: "Tiptap.EditorKitDelegate.setEditorRawText",
+            values: {
+              text: text
+            }
+          }))
+
           if (this.skipInsertRawText) {
             this.skipInsertRawText = false;
             return;
           }
-          this.editor.commands.setContent(text);
-        },
-        // getCurrentLineText: () => {},
-        // getPreviousLineText: () => {},
-        // replaceText: ({ regex, replacement, previousLine }) => {},
-        // getElementsBySelector: (selector) => {},
-        // insertElement: (element, inVicinityOfElement, insertionType) => {},
-        // preprocessElement: (element) => {},
-        clearUndoHistory: () => {
           this.configureEditor();
+          this.editor.on('create', () => {
+            console.info(JSON.stringify({
+              type: "Tiptap.EditorKitDelegate.setEditorRawText",
+              message: "Editor created. Setting text."
+            }))
+            this.editor.commands.setContent(text);
+            this.editorKit.fileLoader.loadFileSafeElements();
+          }) 
+        },
+        getCurrentLineText: () => {
+          // Make sure editor is in focus before trying to get the current cursor location
+          this.editor.commands.focus();
+
+          console.info(JSON.stringify({
+            type: "Tiptap.EditorKitDelegate.getCurrentLineText",
+            result: document.getSelection().getRangeAt(0).startContainer.parentNode.textContent
+          }))
+
+          return document.getSelection().getRangeAt(0).startContainer.parentNode
+            .textContent;
+        },
+        getPreviousLineText: () => {
+          // Make sure editor is in focus before trying to get the current cursor location
+          this.editor.commands.focus();
+
+          console.info(JSON.stringify({
+            type: "Tiptap.EditorKitDelegate.getPreviousLineText",
+            result: document.getSelection().getRangeAt(0).startContainer.parentNode.previousElementSibling.textContent
+          }))
+
+          return document.getSelection().getRangeAt(0).startContainer.parentNode
+            .previousElementSibling.textContent;
+        },
+        // eslint-disable-next-line no-unused-vars
+        replaceText: ({ regex, replacement, previousLine }) => {
+          console.info(JSON.stringify({
+            type: "Tiptap.EditorKitDelegate.replaceText",
+            values: {
+              regex: regex,
+              replacement: replacement,
+              previousLine: previousLine
+            }
+          }))
+          
+          // Make sure editor is in focus before trying to get the current cursor location
+          // this.editor.commands.focus();
+          const currentLine = document.getSelection().getRangeAt(0)
+            .startContainer.parentNode;
+          document
+            .getSelection()
+            .getRangeAt(0).startContainer.parentNode.textContent =
+            currentLine.textContent.replace(regex, "");
+          this.editor.commands.insertContent(replacement);
+        },
+        getElementsBySelector: (selector) => {
+          console.info(JSON.stringify({
+            type: "Tiptap.EditorKitDelegate.getElementsBySelector",
+            values: {
+              selector: selector
+            },
+            results: this.editor.contentComponent.$el.querySelectorAll(selector).length
+          }))
+          
+          return this.editor.contentComponent.$el.querySelectorAll(selector);
+        },
+        insertElement: (element, inVicinityOfElement, insertionType) => {
+
+          console.log('insert element')
+          console.log(this.editor.getHTML())
+          console.log(element)
+          console.log(element.tagName)
+          console.log(inVicinityOfElement)
+          
+          if (inVicinityOfElement) {
+            
+            // Temporary bug fix.
+            // TODO: Find a better way on inserting elements
+            if (element.textContent.includes('Downloading')) {
+              inVicinityOfElement.textContent = element.textContent;
+              return;
+            }
+
+            if (element.tagName === 'IMG') {
+              console.log('replace element')
+              inVicinityOfElement.replaceWith(element);
+              console.log(this.editor.getHTML())
+              return;
+            }
+
+            if (insertionType === "afterend") {
+              console.log('insert element - afterend')
+              inVicinityOfElement.insertAdjacentElement("afterend", element);
+            } else if (insertionType === "child") {
+              console.log('insert element - child')
+              inVicinityOfElement.appendChild(element);
+            }
+          } else {
+            console.log('insert element at cursor')
+            this.editor.commands.insertContent(element);
+          }
+          console.log(this.editor.getHTML())
+        },
+        preprocessElement: (element) => {
+          console.info({
+            type: "Tiptap.EditorKitDelegate.preprocessElement",
+            values: {
+              element: element
+            }
+          })
+          return element;
+        },
+        clearUndoHistory: () => {
+          // TODO: Implement clear undo history
+          console.info({
+            type: "Tiptap.EditorKitDelegate.clearUndoHistory",
+            message: "This method is not implemented."
+          })
+          return;
         },
         onNoteLockToggle: (isLocked) => {
+          console.info({
+            type: "Tiptap.EditorKitDelegate.onNoteLockToggle",
+            values: {
+              isLocked: isLocked
+            },
+            message: `Toggle editor. Editor is editable: ${!isLocked}`
+          })
           this.editor.setEditable(!isLocked);
         },
         onNoteValueChange: (note) => {
+          console.info({
+            type: "Tiptap.EditorKitDelegate.onNoteValueChange",
+            values: {
+              note: note
+            }
+          })
           if (this.note_uuid === undefined) {
             /*
              * Editor initalized
@@ -137,25 +286,36 @@ export default {
              * Fixes issue where the new note content is shared with conected peers.
              */
             this.note_uuid = note.uuid; // Set new note uuid
-            this.configureEditor(); // Reset editor to remove colab session
+            this.sharingIsEnabled = false;
+            this.configureEditor(true); // Reset editor to remove colab session
           }
         },
       };
 
       this.editorKit = new EditorKit(delegate, {
         mode: "html",
-        supportsFileSafe: false,
+        supportsFileSafe: true,
       });
+
+      if (!window.filesafe_params) {
+        this.editorKit.getFileSafe().then((filesafeInstance) => {
+          window.filesafe_params = {
+            embed: FilesafeEmbed,
+            client: filesafeInstance,
+          };
+
+          console.log(window.filesafe_params)
+        });
+      }
     },
 
-    configureEditor(webrtcEnabled = false) {
-      let editorText = null;
+    configureEditor(keepEditorText = false) {
+      console.log('configuring editor')
+      let defaultText = "";
+
       if (this.editor) {
-        editorText = this.editor.getHTML();
-        this.editor.off(this.onEditorUpdate);
-        this.editor.destroy();
-        if (this.webrtcBridge) this.webrtcBridge.disconnectWebrtc();
-        this.webrtcBridge = undefined;
+        if (keepEditorText) defaultText = this.editor.getHTML();
+        this.destroyEditor();
       }
 
       const params = new URLSearchParams(window.location.search);
@@ -167,7 +327,7 @@ export default {
         params.has("joinSharedSession") &&
         params.get("joinSharedSession") === "true"
       ) {
-        webrtcEnabled = true;
+        this.sharingIsEnabled = true;
         documentName = params.get("documentName");
         documentPassword = params.get("documentPassword");
         hostId = params.get("hostId");
@@ -181,7 +341,37 @@ export default {
         Paragraph.extend({
           addAttributes() {
             return {
-              testAttr: {
+              fsplaceholder: {
+                ...this.parent?.(),
+                default: null,
+                keepOnSplit: false,
+              },
+              fscollapsable: {
+                ...this.parent?.(),
+                default: null,
+                keepOnSplit: false,
+              },
+              ghost: {
+                ...this.parent?.(),
+                default: null,
+                keepOnSplit: false,
+              },
+              fsid: {
+                ...this.parent?.(),
+                default: null,
+                keepOnSplit: false,
+              },
+              fsname: {
+                ...this.parent?.(),
+                default: null,
+                keepOnSplit: false,
+              },
+              id: {
+                ...this.parent?.(),
+                default: null,
+                keepOnSplit: false,
+              },
+              contenteditable: {
                 ...this.parent?.(),
                 default: null,
                 keepOnSplit: false,
@@ -191,13 +381,43 @@ export default {
           addKeyboardShortcuts() {
             return {
               Tab: () => {
-                return this.editor.commands.insertContent('&emsp;')
-              }
-            }
-          }
+                return this.editor.commands.insertContent("&emsp;");
+              },
+            };
+          },
         }),
         Text,
-        Image,
+        Image.extend({
+          addAttributes() {
+            return {
+              src: {
+                ...this.parent?.(),
+                default: null,
+                keepOnSplit: false,
+              },
+              srcset: {
+                ...this.parent?.(),
+                default: null,
+                keepOnSplit: false,
+              },
+              fsid: {
+                ...this.parent?.(),
+                default: null,
+                keepOnSplit: false,
+              },
+              fsname: {
+                ...this.parent?.(),
+                default: null,
+                keepOnSplit: false,
+              },
+              fscollapsable: {
+                ...this.parent?.(),
+                default: null,
+                keepOnSplit: false,
+              },
+            };
+          },
+        }),
         Dropcursor,
         TableRow,
         TableHeader,
@@ -213,14 +433,17 @@ export default {
         CodeBlock,
         HardBreak,
         Heading,
-        HorizontalRule,
         Bold,
         Italics,
         Strike,
       ];
 
-      if (webrtcEnabled) {
-        this.webrtcBridge = new WebrtcBridge(documentName, documentPassword, hostId);
+      if (this.sharingIsEnabled) {
+        this.webrtcBridge = new WebrtcBridge(
+          documentName,
+          documentPassword,
+          hostId
+        );
 
         this.webrtcBridge.waitToConnect().then(() => {
           this.webrtcBridge.isHost() && this.presentSharingUrl();
@@ -235,12 +458,38 @@ export default {
       this.editor = new Editor({
         extensions: extensions,
         autofocus: true,
+        content: defaultText,
       });
       this.editor.on("update", this.onEditorUpdate);
+      this.editor.on("create", this.addEditorKeystrokeEvents);
+    },
 
-      if (editorText) {
-        this.editor.commands.setContent(editorText);
-      }
+    insertImage() {
+      this.$refs.filesafeModal.showModal();
+    },
+
+    addEditorKeystrokeEvents() {
+      if (!this.editor) return;
+      this.editor.contentComponent.$el.addEventListener(
+        "keyup",
+        this.onKeyUpHandler
+      );
+      this.editor.contentComponent.$el.addEventListener(
+        "paste",
+        this.onPasteHandler
+      );
+    },
+
+    onKeyUpHandler(event) {
+      const key = event.which;
+      this.editorKit.onEditorKeyUp({
+        isSpace: (key == event.code) === "Space",
+        isEnter: (key == event.code) === "Enter",
+      });
+    },
+
+    onPasteHandler() {
+      this.editorKit.onEditorPaste();
     },
 
     /*
@@ -324,6 +573,7 @@ export default {
     },
 
     setupWebrtc() {
+      this.sharingIsEnabled = true;
       if (this.webrtcBridge && this.webrtcBridge.provider && this.editor) {
         this.presentSharingUrl();
       } else {
@@ -332,6 +582,7 @@ export default {
     },
 
     disconnectWebrtc() {
+      this.sharingIsEnabled = false;
       // Check if WebRTC is even enabled
       if (!this.webrtcBridge || !this.webrtcBridge.isConnectedWebrtc()) {
         this.presentSharingNotStarted();
@@ -339,7 +590,16 @@ export default {
       }
       if (this.webrtcBridge) this.webrtcBridge.disconnectWebrtc();
       this.presentSharingDisconnected();
-      this.configureEditor();
+      this.configureEditor(true);
+    },
+
+    destroyEditor() {
+      if (!this.editor) return;
+      if (this.webrtcBridge && this.webrtcBridge.provider)
+        this.webrtcBridge.provider.destroy();
+      this.editor.destroy();
+      this.editor = null;
+      this.webrtcBridge = null;
     },
 
     isWebrtcConnected() {
@@ -347,10 +607,10 @@ export default {
     },
 
     /*
-    * Change the name of the current user in the collaborative document
-    * @param  function  Optional callback function that is to be run IF and WHEN the 
-    *   user changes the name
-    */
+     * Change the name of the current user in the collaborative document
+     * @param  function  Optional callback function that is to be run IF and WHEN the
+     *   user changes the name
+     */
     changeSharingUserName(onChange = undefined) {
       const alert = new SKPrompt({
         title: "Set Share Name",
@@ -359,16 +619,15 @@ export default {
         submitCallback: (newName) => {
           // Set default name if user clicks ok without setting a name
           if (newName.trim() === "") newName = "User";
-          if (this.webrtcBridge) this.webrtcBridge.changeName(newName)
-          this.editor.chain().focus().user(this.webrtcBridge.getUser()).run()
-          onChange && onChange()
+          if (this.webrtcBridge) this.webrtcBridge.changeName(newName);
+          this.editor.chain().focus().user(this.webrtcBridge.getUser()).run();
+          onChange && onChange();
         },
         dismissCallback: () => {},
       });
       alert.present();
-    }
+    },
   },
-
 };
 </script>
 
@@ -552,6 +811,11 @@ body {
   img {
     max-width: 100%;
     height: auto;
+    margin: 0px;
+
+    &.ProseMirror-selectednode {
+      outline: 3px solid #68cef8;
+    }
   }
 
   hr {

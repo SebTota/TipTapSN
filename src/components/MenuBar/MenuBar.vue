@@ -49,21 +49,47 @@ export default {
           isActive: () => this.editor.isActive('strike'),
         },
         {
-          icon: 'code-view',
-          title: 'Code',
-          action: () => this.editor.chain().focus().toggleCode().run(),
-          isActive: () => this.editor.isActive('code'),
-        },
-        {
           icon: 'mark-pen-line',
           title: 'Highlight',
           action: () => this.editor.chain().focus().toggleHighlight().run(),
           isActive: () => this.editor.isActive('highlight'),
         },
         {
+          icon: 'paragraph',
+          title: 'Paragraph',
+          action: () => this.editor.chain().focus().setParagraph().run(),
+          isActive: () => this.editor.isActive('paragraph'),
+        },
+        {
+          type: 'divider',
+        },
+        {
+          icon: 'code-view',
+          title: 'Code',
+          action: () => this.editor.chain().focus().toggleCode().run(),
+          isActive: () => this.editor.isActive('code'),
+        },
+        {
+          icon: 'code-box-line',
+          title: 'Code Block',
+          action: () => this.editor.chain().focus().toggleCodeBlock().run(),
+          isActive: () => this.editor.isActive('codeBlock'),
+        },
+        {
+          icon: 'double-quotes-l',
+          title: 'Blockquote',
+          action: () => this.editor.chain().focus().toggleBlockquote().run(),
+          isActive: () => this.editor.isActive('blockquote'),
+        },
+        {
           icon: 'table-2',
           title: 'Table',
           action: () => this.editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(),
+        },
+        {
+          icon: 'image-line',
+          title: 'Image',
+          action: () => this.tiptap.insertImage(),
         },
         {
           type: 'divider',
@@ -79,18 +105,6 @@ export default {
           title: 'Heading 2',
           action: () => this.editor.chain().focus().toggleHeading({ level: 2 }).run(),
           isActive: () => this.editor.isActive('heading', { level: 2 }),
-        },
-        {
-          icon: 'h-3',
-          title: 'Heading 3',
-          action: () => this.editor.chain().focus().toggleHeading({ level: 3 }).run(),
-          isActive: () => this.editor.isActive('heading', { level: 3 }),
-        },
-        {
-          icon: 'paragraph',
-          title: 'Paragraph',
-          action: () => this.editor.chain().focus().setParagraph().run(),
-          isActive: () => this.editor.isActive('paragraph'),
         },
         {
           icon: 'list-unordered',
@@ -111,26 +125,6 @@ export default {
           isActive: () => this.editor.isActive('taskList'),
         },
         {
-          icon: 'code-box-line',
-          title: 'Code Block',
-          action: () => this.editor.chain().focus().toggleCodeBlock().run(),
-          isActive: () => this.editor.isActive('codeBlock'),
-        },
-        {
-          type: 'divider',
-        },
-        {
-          icon: 'double-quotes-l',
-          title: 'Blockquote',
-          action: () => this.editor.chain().focus().toggleBlockquote().run(),
-          isActive: () => this.editor.isActive('blockquote'),
-        },
-        {
-          icon: 'separator',
-          title: 'Horizontal Rule',
-          action: () => this.editor.chain().focus().setHorizontalRule().run(),
-        },
-        {
           type: 'divider',
         },
         {
@@ -146,19 +140,6 @@ export default {
             .clearNodes()
             .unsetAllMarks()
             .run(),
-        },
-        {
-          type: 'divider',
-        },
-        {
-          icon: 'arrow-go-back-line',
-          title: 'Undo',
-          action: () => this.editor.chain().focus().undo().run(),
-        },
-        {
-          icon: 'arrow-go-forward-line',
-          title: 'Redo',
-          action: () => this.editor.chain().focus().redo().run(),
         },
         {
           type: 'divider',
