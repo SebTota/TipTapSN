@@ -1,9 +1,9 @@
 # TipTapSN
-Note: This editor is still in development and should only be used for testing and development. 
+Note: This editor is still in beta and may contain bugs. 
 
 TipTapSN is a collaborative note editor built for [Standard Notes](https://standardnotes.com) using the [TipTap](https://www.tiptap.dev) WYSIWYG editor. The key benefit of TipTapSN is the collaborative feature which allows you to work on a note with multiple users.
 
-TipTapSN is not supported in the iOS mobile StandardNotes application at this time.
+Watch this [video](https://drive.google.com/file/d/1zgZXtHYWN3DweDkmvSAioeLVHQhykvHY/view?usp=sharing) for an example. 
 
 ## Sharing
 
@@ -31,6 +31,16 @@ wss://y-webrtc-signaling-eu.herokuapp.com
 wss://y-webrtc-signaling-us.herokuapp.com
 ```
 In the future I would like to give users the ability to specify their own servers, but that is not an option at this point in time.
+
+## How to install the editor in Standard Notes
+
+* Open the Standard Notes application and click the 'Extensions` button.
+* Click `Import Extension`
+* Paste this URL into the text box
+```
+https://sebtota.github.io/TipTapSN/ext.json
+```
+* Click Enter
 
 ## Development
 
