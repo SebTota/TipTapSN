@@ -304,22 +304,6 @@ export default {
       alert.present();
     },
 
-    presentSharingNotStarted() {
-      console.log("Did not disconnect from WebRTC. WebRTC was not enabled.");
-      const alert = new SKAlert({
-        title: "Sharing for this note was not enabled.",
-        text: "Sharing for this note was already turned off.",
-        buttons: [
-          {
-            text: "Close",
-            style: "neutral",
-            action: function () {},
-          },
-        ],
-      });
-      alert.present();
-    },
-
     setupWebrtc() {
       if (this.webrtcBridge && this.webrtcBridge.provider && this.editor) {
         this.presentSharingUrl();
@@ -333,7 +317,6 @@ export default {
       this.webrtcEnabled = false;
       // Check if WebRTC is even enabled
       if (!this.webrtcBridge || !this.webrtcBridge.isConnectedWebrtc()) {
-        this.presentSharingNotStarted();
         return;
       }
       if (this.webrtcBridge) this.webrtcBridge.disconnectWebrtc();
