@@ -62,7 +62,7 @@ import SKPrompt from "./SKPrompt.js";
 // Standard Notes
 import EditorKit from "@standardnotes/editor-kit";
 
-import MenuBar from "./MenuBar.vue";
+import MenuBar from "./EditorMenu/MenuBar.vue";
 import WebrtcBridge from "./WebrtcBridge.js";
 
 export default {

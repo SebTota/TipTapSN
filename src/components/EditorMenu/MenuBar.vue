@@ -1,7 +1,13 @@
+/* eslint-disable vue/no-unused-vars */
 <template>
   <div>
     <template v-for="(item, index) in items">
       <div class="divider" v-if="item.type === 'divider'" :key="index" />
+      <!-- <template v-else-if="item.type === 'dropdown'">
+        <template v-for="(dropdownItem, dropdownIndex) in item.items">
+          <a :key="dropdownIndex">testabc123</a>
+        </template>
+      </template> -->
       <menu-item v-else :key="index" v-bind="item" />
     </template>
   </div>
@@ -84,7 +90,69 @@ export default {
         {
           icon: 'table-2',
           title: 'Table',
-          action: () => this.editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(),
+          type: 'dropdown',
+          action: () => {},
+          dropdownOptions: [
+            {
+              title: 'Insert Table',
+              action: () => { this.editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run() }
+            },
+            {
+              title: 'Add Column Before',
+              action: () => { this.editor.chain().focus().addColumnBefore().run() },
+              isRendered: () => { return this.editor.can().addColumnBefore() }
+            },
+            {
+              title: 'Add Column After',
+              action: () => { this.editor.chain().focus().addColumnAfter().run() },
+              isRendered: () => { return this.editor.can().addColumnAfter() }
+            },
+            {
+              title: 'Delete Column',
+              action: () => { this.editor.chain().focus().deleteColumn().run() },
+              isRendered: () => { return this.editor.can().deleteColumn() }
+            },
+            {
+              title: 'Add Row Before',
+              action: () => { this.editor.chain().focus().addRowBefore().run() },
+              isRendered: () => { return this.editor.can().addRowBefore() }
+            },
+            {
+              title: 'Add Row After',
+              action: () => { this.editor.chain().focus().addRowAfter().run() },
+              isRendered: () => { return this.editor.can().addRowAfter() }
+            },
+            {
+              title: 'Delete Row',
+              action: () => { this.editor.chain().focus().deleteRow().run() },
+              isRendered: () => { return this.editor.can().deleteRow() }
+            },
+            {
+              title: 'Toggle Header Column',
+              action: () => { this.editor.chain().focus().toggleHeaderColumn().run() },
+              isRendered: () => { return this.editor.can().toggleHeaderColumn() }
+            },
+            {
+              title: 'Toggle Header Row',
+              action: () => { this.editor.chain().focus().toggleHeaderRow().run() },
+              isRendered: () => { return this.editor.can().toggleHeaderRow() }
+            },
+            {
+              title: 'Merge Cells',
+              action: () => { this.editor.chain().focus().mergeCells().run() },
+              isRendered: () => { return this.editor.can().mergeCells() }
+            },
+            {
+              title: 'Split Cell',
+              action: () => { this.editor.chain().focus().splitCell().run() },
+              isRendered: () => { return this.editor.can().splitCell() }
+            },
+            {
+              title: 'Delete Table',
+              action: () => { this.editor.chain().focus().deleteTable().run() },
+              isRendered: () => { return this.editor.can().deleteTable() }
+            },
+          ]
         },
         {
           type: 'divider',
