@@ -77,7 +77,6 @@ export default {
       editor: null,
       editorKit: null,
       note_uuid: undefined,
-      skipInsertRawText: false,
       webrtcBridge: undefined,
     };
   },
@@ -99,10 +98,6 @@ export default {
       const delegate = {
         // insertRawText: (text) => {},
         setEditorRawText: (text) => {
-          if (this.skipInsertRawText) {
-            this.skipInsertRawText = false;
-            return;
-          }
           this.configureEditor(text);
         },
         // getCurrentLineText: () => {},
@@ -123,14 +118,7 @@ export default {
              * Editor initalized
              */
             this.note_uuid = note.uuid;
-          } else if (this.note_uuid === note["uuid"]) {
-            /*
-             * This is needed because a note change is triggered when a user clicks on 'Extensions'
-             * causing the focus to shit back to the editor and the Extension tab never has a chance
-             * to open.
-             */
-            this.skipInsertRawText = true;
-          } else {
+          } else if (this.note_uuid !== note["uuid"]) {
             /*
              * Handle user switching note while sharing a different note live.
              * Fixes issue where the new note content is shared with conected peers.
@@ -234,7 +222,6 @@ export default {
       this.tiptap = this;
       this.editor = new Editor({
         extensions: extensions,
-        autofocus: true,
         content: editorText
       });
       this.editor.on("update", this.onEditorUpdate);
