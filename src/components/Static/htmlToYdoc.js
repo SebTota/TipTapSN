@@ -5,7 +5,9 @@ import { elementFromString } from "./elementFromString";
 import Extensions from "./Extensions";
 
 export function htmlToYdoc (html) {
-    return prosemirrorToYDoc(DOMParser.fromSchema(Extensions.getExtensionSchema()).parse(elementFromString(html), {preserveWhitespace: true}));
+    return prosemirrorToYDoc(DOMParser.fromSchema(Extensions.getExtensionSchema()).parse(elementFromString(html), {
+        slice: false
+    }));
 }
   
   
