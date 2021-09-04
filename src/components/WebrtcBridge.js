@@ -6,7 +6,7 @@ import CollaborationCursor from "@tiptap/extension-collaboration-cursor";
 import { htmlToYdoc } from "./Static/htmlToYdoc";
 
 export default class WebrtcBridge {
-  constructor(documentName = undefined, documentPassword = undefined, hostId = undefined, html = null) {
+  constructor(documentName = undefined, documentPassword = undefined, hostId = undefined, html = "") {
     this.ydoc = null;
     this.provider = null;
     this.isWebrtcHost = false;
@@ -15,27 +15,20 @@ export default class WebrtcBridge {
     this.users = [];
     this.user = {
       name: "User",
-      color: "#" + Math.floor(Math.random() * 16777215).toString(16),
+      color: this._randomColor(),
     }
+
     this.document = {
       name: documentName,
       password: documentPassword
     }
-
-    const params = new URLSearchParams(window.location.search);
-    this.isWebrtcHost = !(
-      params.has("joinSharedSession") &&
-      params.get("joinSharedSession") === "true"
-    );
-
-    // Create a room name and password if one was not already set
-    if (!(this.document['name'] && this.document['password'])) {
-      this.document['name'] = this.makeid(64);
-      this.document['password'] = this.makeid(64);
+    
+    if (!(documentName && documentPassword)) {
+      this._generateRoomCredentials();
     }
 
+    this._checkIfHost();
     this.ydoc = htmlToYdoc(html);
-
     this.provider = new WebrtcProvider(this.document['name'], this.ydoc, {
       password: this.document['password'],
     });
@@ -81,13 +74,18 @@ export default class WebrtcBridge {
   isHost() {
     return this.isWebrtcHost;
   }
+
+  _generateRoomCredentials() {
+    this.document['name'] = this._makeid(64);
+    this.document['password'] = this._makeid(64);
+  }
   
   /*
    * Generate a random string of a specified length
    * @param   Int     The requested length of the random string
    * @return  String  A random string of a specified length
    */
-  makeid(length) {
+  _makeid(length) {
     var result = "";
     var characters =
       "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~";
@@ -96,6 +94,26 @@ export default class WebrtcBridge {
       result += characters.charAt(Math.floor(Math.random() * charactersLength));
     }
     return result;
+  }
+
+  /*
+  * https://stackoverflow.com/questions/67391525/javascript-generate-random-pastel-hex-rgba-color
+  */
+  _randomColor() {
+    let R = Math.floor((Math.random() * 127) + 127);
+    let G = Math.floor((Math.random() * 127) + 127);
+    let B = Math.floor((Math.random() * 127) + 127);
+    
+    let rgb = (R << 16) + (G << 8) + B;
+    return `#${rgb.toString(16)}`;    
+  }
+
+  _checkIfHost() {
+    const params = new URLSearchParams(window.location.search);
+    this.isWebrtcHost = !(
+      params.has("joinSharedSession") &&
+      params.get("joinSharedSession") === "true"
+    );
   }
 
   /*

@@ -137,7 +137,6 @@ export default {
         hostId = params.get("hostId");
       }
 
-
       if (this.webrtcEnabled) {
         this.webrtcBridge = new WebrtcBridge(documentName, documentPassword, hostId, editorText);
 
