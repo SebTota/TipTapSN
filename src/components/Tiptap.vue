@@ -31,33 +31,9 @@
 <script>
 import { EditorContent } from "@tiptap/vue-2";
 import { Editor } from "@tiptap/core";
-import Hisotry from "@tiptap/extension-history";
-import Document from "@tiptap/extension-document";
-import Paragraph from "@tiptap/extension-paragraph";
-import Text from "@tiptap/extension-text";
-import Dropcursor from "@tiptap/extension-dropcursor";
-import TaskList from "@tiptap/extension-task-list";
-import TaskItem from "@tiptap/extension-task-item";
-import Highlight from "@tiptap/extension-highlight";
-import Table from "@tiptap/extension-table";
-import TableRow from "@tiptap/extension-table-row";
-import TableCell from "@tiptap/extension-table-cell";
-import TableHeader from "@tiptap/extension-table-header";
-import Image from "@tiptap/extension-image";
-import Blockquote from "@tiptap/extension-blockquote";
-import BulletList from "@tiptap/extension-bullet-list";
-import OrderedList from "@tiptap/extension-ordered-list";
-import ListItem from "@tiptap/extension-list-item";
-import Code from "@tiptap/extension-code";
-import CodeBlock from "@tiptap/extension-code-block";
-import HardBreak from "@tiptap/extension-hard-break";
-import Heading from "@tiptap/extension-heading";
-import HorizontalRule from "@tiptap/extension-horizontal-rule";
-import Bold from "@tiptap/extension-bold";
-import Italics from "@tiptap/extension-italic";
-import Strike from "@tiptap/extension-strike";
 import { SKAlert } from "sn-stylekit";
 import SKPrompt from "./SKPrompt.js";
+import Extensions from "./Static/Extensions"
 
 // Standard Notes
 import EditorKit from "@standardnotes/editor-kit";
@@ -161,69 +137,25 @@ export default {
         hostId = params.get("hostId");
       }
 
-      let extensions = [
-        Table.configure({
-          resizable: true,
-        }),
-        Document,
-        Paragraph.extend({
-          addAttributes() {
-            return {
-              testAttr: {
-                ...this.parent?.(),
-                default: null,
-                keepOnSplit: false,
-              },
-            };
-          },
-          addKeyboardShortcuts() {
-            return {
-              Tab: () => {
-                return this.editor.commands.insertContent('&emsp;')
-              }
-            }
-          }
-        }),
-        Text,
-        Image,
-        Dropcursor,
-        TableRow,
-        TableHeader,
-        TableCell,
-        Highlight,
-        TaskList,
-        TaskItem,
-        Blockquote,
-        BulletList,
-        OrderedList,
-        ListItem,
-        Code,
-        CodeBlock,
-        HardBreak,
-        Heading,
-        HorizontalRule,
-        Bold,
-        Italics,
-        Strike,
-      ];
 
       if (this.webrtcEnabled) {
-        this.webrtcBridge = new WebrtcBridge(documentName, documentPassword, hostId);
+        this.webrtcBridge = new WebrtcBridge(documentName, documentPassword, hostId, editorText);
 
         this.webrtcBridge.waitToConnect().then(() => {
           this.webrtcBridge.isHost() && this.presentSharingUrl();
         });
-
-        extensions = extensions.concat(this.webrtcBridge.getExtensions());
+        
+        this.editor = new Editor({
+          extensions: Extensions.getExtensions().concat(this.webrtcBridge.getExtensions()),
+        });
       } else {
-        extensions.push(Hisotry);
+        this.editor = new Editor({
+        extensions: Extensions.getExtensions().concat(Extensions.getHistoryExtension()),
+        content: editorText
+      });
       }
 
       this.tiptap = this;
-      this.editor = new Editor({
-        extensions: extensions,
-        content: editorText
-      });
       this.editor.on("update", this.onEditorUpdate);
     },
 

@@ -1,13 +1,12 @@
-import * as Y from "yjs";
 import { WebrtcProvider } from "y-webrtc";
 
 import Collaboration from "@tiptap/extension-collaboration";
 import CollaborationCursor from "@tiptap/extension-collaboration-cursor";
 
-// eslint-disable-next-line no-unused-vars
-export default class WebrtcBridge {
+import { htmlToYdoc } from "./Static/htmlToYdoc";
 
-  constructor(documentName = undefined, documentPassword = undefined, hostId = undefined) {
+export default class WebrtcBridge {
+  constructor(documentName = undefined, documentPassword = undefined, hostId = undefined, html = null) {
     this.ydoc = null;
     this.provider = null;
     this.isWebrtcHost = false;
@@ -35,7 +34,7 @@ export default class WebrtcBridge {
       this.document['password'] = this.makeid(64);
     }
 
-    this.ydoc = new Y.Doc();
+    this.ydoc = htmlToYdoc(html);
 
     this.provider = new WebrtcProvider(this.document['name'], this.ydoc, {
       password: this.document['password'],
@@ -46,6 +45,7 @@ export default class WebrtcBridge {
     return [
       Collaboration.configure({
         document: this.ydoc,
+        field: "prosemirror"
       }),
 
       CollaborationCursor.configure({
