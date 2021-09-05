@@ -26,9 +26,7 @@ import Italics from "@tiptap/extension-italic";
 import Strike from "@tiptap/extension-strike";
 import History from "@tiptap/extension-history";
 
-
 export default class Extensions {
-
   static _extensions = [
     Table.configure({
       resizable: true,
@@ -47,10 +45,10 @@ export default class Extensions {
       addKeyboardShortcuts() {
         return {
           Tab: () => {
-            return this.editor.commands.insertContent('&emsp;')
-          }
-        }
-      }
+            return this.editor.commands.insertContent("&emsp;");
+          },
+        };
+      },
     }),
     Text,
     Image,
@@ -74,16 +72,16 @@ export default class Extensions {
     Italics,
     Strike,
   ];
-    
-    static getExtensions() {
-        return this._extensions;
-    }
 
-    static getHistoryExtension() {
-      return History;
-    }
+  static getExtensions() {
+    return this._extensions;
+  }
 
-    static getExtensionSchema() {
-        return getSchema(this._extensions);
-    }
+  static getHistoryExtension() {
+    return History;
+  }
+
+  static getExtensionSchema() {
+    return getSchema(this._extensions);
+  }
 }

@@ -4,33 +4,40 @@ import Collaboration from "@tiptap/extension-collaboration";
 import CollaborationCursor from "@tiptap/extension-collaboration-cursor";
 
 import { htmlToYdoc } from "./Static/htmlToYdoc";
+import {
+  checkIfHost,
+  generateId,
+  generateRandomColor,
+} from "./Static/WebrtcBridgeHelper";
 
 export default class WebrtcBridge {
-  constructor(documentName = undefined, documentPassword = undefined, hostId = undefined, html = "") {
+  constructor(
+    documentName = generateId(64),
+    documentPassword = generateId(64),
+    hostId = undefined,
+    editorHtml = ""
+  ) {
     this.ydoc = null;
     this.provider = null;
     this.isWebrtcHost = false;
     this.webrtcHostId = hostId;
     this.shareUrl = "";
+    this.webrtcUsers = [];
     this.users = [];
     this.user = {
       name: "User",
-      color: this._randomColor(),
-    }
+      color: generateRandomColor(),
+    };
 
     this.document = {
       name: documentName,
-      password: documentPassword
-    }
-    
-    if (!(documentName && documentPassword)) {
-      this._generateRoomCredentials();
-    }
+      password: documentPassword,
+    };
 
-    this._checkIfHost();
-    this.ydoc = htmlToYdoc(html);
-    this.provider = new WebrtcProvider(this.document['name'], this.ydoc, {
-      password: this.document['password'],
+    this.isWebrtcHost = checkIfHost();
+    this.ydoc = htmlToYdoc(editorHtml);
+    this.provider = new WebrtcProvider(this.document["name"], this.ydoc, {
+      password: this.document["password"],
     });
   }
 
@@ -38,7 +45,7 @@ export default class WebrtcBridge {
     return [
       Collaboration.configure({
         document: this.ydoc,
-        field: "prosemirror"
+        field: "prosemirror",
       }),
 
       CollaborationCursor.configure({
@@ -56,7 +63,7 @@ export default class WebrtcBridge {
   }
 
   getUser() {
-    return this.user
+    return this.user;
   }
 
   getShareUrl() {
@@ -64,56 +71,15 @@ export default class WebrtcBridge {
   }
 
   getUserName() {
-    return this.user['name'];
+    return this.user["name"];
   }
 
   changeName(name) {
-    this.user['name'] = name;
+    this.user["name"] = name;
   }
 
   isHost() {
     return this.isWebrtcHost;
-  }
-
-  _generateRoomCredentials() {
-    this.document['name'] = this._makeid(64);
-    this.document['password'] = this._makeid(64);
-  }
-  
-  /*
-   * Generate a random string of a specified length
-   * @param   Int     The requested length of the random string
-   * @return  String  A random string of a specified length
-   */
-  _makeid(length) {
-    var result = "";
-    var characters =
-      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~";
-    var charactersLength = characters.length;
-    for (var i = 0; i < length; i++) {
-      result += characters.charAt(Math.floor(Math.random() * charactersLength));
-    }
-    return result;
-  }
-
-  /*
-  * https://stackoverflow.com/questions/67391525/javascript-generate-random-pastel-hex-rgba-color
-  */
-  _randomColor() {
-    let R = Math.floor((Math.random() * 127) + 127);
-    let G = Math.floor((Math.random() * 127) + 127);
-    let B = Math.floor((Math.random() * 127) + 127);
-    
-    let rgb = (R << 16) + (G << 8) + B;
-    return `#${rgb.toString(16)}`;    
-  }
-
-  _checkIfHost() {
-    const params = new URLSearchParams(window.location.search);
-    this.isWebrtcHost = !(
-      params.has("joinSharedSession") &&
-      params.get("joinSharedSession") === "true"
-    );
   }
 
   /*
@@ -125,20 +91,20 @@ export default class WebrtcBridge {
     return this.provider.room.peerId;
   }
 
-    /*
+  /*
    * Event handles used to keep track of users in the webRTC room and to make sure all the users know who the host is
    */
-    peerChangeEventHandler({removed, added, webrtcPeers, bcPeers}) {
-      added; webrtcPeers; bcPeers;
-      /*
-       * Client only (not host): Every time a user leaves the room, check to make sure it is not the host who has left.
-       */
-      if (!this.isWebrtcHost && removed.includes(this.webrtcHostId)) {
-          alert(
-            "Host disconnected. Document is no longer being saved by the host."
-          );
-        }
+  // eslint-disable-next-line no-unused-vars
+  peerChangeEventHandler({ removed, added, webrtcPeers, bcPeers }) {
+    /*
+     * Client only (not host): Every time a user leaves the room, check to make sure it is not the host who has left.
+     */
+    if (!this.isWebrtcHost && removed.includes(this.webrtcHostId)) {
+      alert(
+        "Host disconnected. Document is no longer being saved by the host."
+      );
     }
+  }
 
   /*
    * TODO: There must be a better way of checking this. Wait until the current client has connected to the WebRTC room.
@@ -151,15 +117,25 @@ export default class WebrtcBridge {
           console.log("Waiting to connect to WebRTC room");
         } else {
           console.log("Connected to WebRTC room");
-          if (this.isWebrtcHost) this.webrtcHostId = this.provider["room"]["peerId"];
-          this.shareUrl = `https://sebtota.github.io/TipTapSN/?joinSharedSession=true&documentName=${this.document['name']}&documentPassword=${this.document['password']}&hostId=${this.webrtcHostId}`;
+          if (this.isWebrtcHost)
+            this.webrtcHostId = this.provider["room"]["peerId"];
+          this.shareUrl = `https://sebtota.github.io/TipTapSN/?joinSharedSession=true&documentName=${this.document["name"]}&documentPassword=${this.document["password"]}&hostId=${this.webrtcHostId}`;
           /*
            * WebRTC clients (non-hosts) should remember the hosts unique ID to determine when the host has left the room.
            * On each subsequent `peers` event, they should check to see if that unique ID has left. If so, the host has left the room.
            */
-          this.provider.on("peers", (data) =>
-            this.peerChangeEventHandler(data)
-          );
+          this.provider.on("peers", (data) => {
+            this.provider.room.webrtcConns.forEach((v, k) => {
+              if (!this.webrtcUsers.includes(k)) {
+                this.webrtcUsers.push(k);
+                v.peer.on("data", (d) => {
+                  console.log(d);
+                });
+              }
+            });
+            this.peerChangeEventHandler(data);
+          });
+
           clearInterval(_interval);
           resolve();
         }

@@ -1,6 +1,11 @@
 <template>
   <div class="editor" v-if="editor">
-    <menu-bar class="editor__header" :editor="editor" :tiptap="tiptap" :webrtcBridge="webrtcBridge" />
+    <menu-bar
+      class="editor__header"
+      :editor="editor"
+      :tiptap="tiptap"
+      :webrtcBridge="webrtcBridge"
+    />
     <editor-content class="editor__content" :editor="editor" />
     <div class="editor__footer">
       <div
@@ -33,7 +38,7 @@ import { EditorContent } from "@tiptap/vue-2";
 import { Editor } from "@tiptap/core";
 import { SKAlert } from "sn-stylekit";
 import SKPrompt from "./SKPrompt.js";
-import Extensions from "./Static/Extensions"
+import Extensions from "./Static/Extensions";
 
 // Standard Notes
 import EditorKit from "@standardnotes/editor-kit";
@@ -57,7 +62,7 @@ export default {
     };
   },
 
-    mounted() {
+  mounted() {
     this.tiptap = this;
     this.configureEditorKit();
     this.configureEditor();
@@ -115,9 +120,9 @@ export default {
     configureEditor(defaultText = undefined) {
       let editorText = "";
       if (this.editor) {
-        if (defaultText) editorText = defaultText
+        if (defaultText) editorText = defaultText;
         else editorText = this.editor.getHTML();
-        
+
         this.editor.off(this.onEditorUpdate);
         this.editor.destroy();
       }
@@ -138,20 +143,29 @@ export default {
       }
 
       if (this.webrtcEnabled) {
-        this.webrtcBridge = new WebrtcBridge(documentName, documentPassword, hostId, editorText);
+        this.webrtcBridge = new WebrtcBridge(
+          documentName,
+          documentPassword,
+          hostId,
+          editorText
+        );
 
         this.webrtcBridge.waitToConnect().then(() => {
           this.webrtcBridge.isHost() && this.presentSharingUrl();
         });
-        
+
         this.editor = new Editor({
-          extensions: Extensions.getExtensions().concat(this.webrtcBridge.getExtensions()),
+          extensions: Extensions.getExtensions().concat(
+            this.webrtcBridge.getExtensions()
+          ),
         });
       } else {
         this.editor = new Editor({
-        extensions: Extensions.getExtensions().concat(Extensions.getHistoryExtension()),
-        content: editorText
-      });
+          extensions: Extensions.getExtensions().concat(
+            Extensions.getHistoryExtension()
+          ),
+          content: editorText,
+        });
       }
 
       this.tiptap = this;
@@ -190,12 +204,13 @@ export default {
 
       const alert = new SKAlert({
         title: "Share link copied to clipboard",
-        text: "The share link was added to your clipboard. Share it with others to allow them to edit your note.",
+        text:
+          "The share link was added to your clipboard. Share it with others to allow them to edit your note.",
         buttons: [
           {
             text: "Close",
             style: "neutral",
-            action: function () {},
+            action: function() {},
           },
         ],
         prompt: {
@@ -215,7 +230,7 @@ export default {
           {
             text: "Close",
             style: "neutral",
-            action: function () {},
+            action: function() {},
           },
         ],
       });
@@ -248,10 +263,10 @@ export default {
     },
 
     /*
-    * Change the name of the current user in the collaborative document
-    * @param  function  Optional callback function that is to be run IF and WHEN the 
-    *   user changes the name
-    */
+     * Change the name of the current user in the collaborative document
+     * @param  function  Optional callback function that is to be run IF and WHEN the
+     *   user changes the name
+     */
     changeSharingUserName(onChange = undefined) {
       const alert = new SKPrompt({
         title: "Set Share Name",
@@ -260,22 +275,25 @@ export default {
         submitCallback: (newName) => {
           // Set default name if user clicks ok without setting a name
           if (newName.trim() === "") newName = "User";
-          if (this.webrtcBridge) this.webrtcBridge.changeName(newName)
-          this.editor.chain().focus().user(this.webrtcBridge.getUser()).run()
-          onChange && onChange()
+          if (this.webrtcBridge) this.webrtcBridge.changeName(newName);
+          this.editor
+            .chain()
+            .focus()
+            .user(this.webrtcBridge.getUser())
+            .run();
+          onChange && onChange();
         },
         dismissCallback: () => {},
       });
       alert.present();
-    }
+    },
   },
-
 };
 </script>
 
 <style lang="scss" scoped>
 .editor {
-  font-family: 'Lato', sans-serif;; 
+  font-family: "Lato", sans-serif;
   height: 100%;
   display: flex;
   flex-direction: column;
