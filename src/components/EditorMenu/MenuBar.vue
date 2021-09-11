@@ -155,6 +155,11 @@ export default {
           ]
         },
         {
+          icon: 'image-line',
+          title: 'Image',
+          action: () => this.tiptap.insertImage(),
+        },
+        {
           type: 'divider',
         },
         {

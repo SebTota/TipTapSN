@@ -1,5 +1,6 @@
 <template>
   <div class="editor" v-if="editor">
+    <filesafe-modal ref="filesafeModal" />
     <menu-bar
       class="editor__header"
       :editor="editor"
@@ -39,9 +40,14 @@ import { Editor } from "@tiptap/core";
 import { SKAlert } from "sn-stylekit";
 import SKPrompt from "./SKPrompt.js";
 import Extensions from "./Static/Extensions";
+import FilesafeModal from "./FilesafeModal.vue";
+import { copyStringToClipboard } from "./Static/copyStringToClipboard";
 
 // Standard Notes
 import EditorKit from "@standardnotes/editor-kit";
+import FilesafeEmbed from "filesafe-embed";
+// eslint-disable-next-line no-unused-vars
+import Filesafe from "filesafe-js";
 
 import MenuBar from "./EditorMenu/MenuBar.vue";
 import WebrtcBridge from "./WebrtcBridge.js";
@@ -50,6 +56,7 @@ export default {
   components: {
     EditorContent,
     MenuBar,
+    FilesafeModal,
   },
 
   data() {
@@ -77,16 +84,117 @@ export default {
   methods: {
     configureEditorKit() {
       const delegate = {
-        // insertRawText: (text) => {},
+        insertRawText: (text) => {
+          console.log("insert raw text", text);
+          this.editor.commands.insertContent(text);
+        },
         setEditorRawText: (text) => {
+          console.log("set text", text);
           this.configureEditor(text);
         },
-        // getCurrentLineText: () => {},
-        // getPreviousLineText: () => {},
-        // replaceText: ({ regex, replacement, previousLine }) => {},
-        // getElementsBySelector: (selector) => {},
-        // insertElement: (element, inVicinityOfElement, insertionType) => {},
-        // preprocessElement: (element) => {},
+        getCurrentLineText: () => {
+          this.editor.commands.focus();
+          console.log(
+            "get current line",
+            document.getSelection().getRangeAt(0).startContainer.parentNode
+              .textContent
+          );
+          return document.getSelection().getRangeAt(0).startContainer.parentNode
+            .textContent;
+        },
+        getPreviousLineText: () => {
+          this.editor.commands.focus();
+          console.log(
+            "get previous line text",
+            document.getSelection().getRangeAt(0).startContainer.parentNode
+              .previousElementSibling.textContent
+          );
+          return document.getSelection().getRangeAt(0).startContainer.parentNode
+            .previousElementSibling.textContent;
+        },
+        replaceText: ({ regex, replacement, previousLine }) => {
+          console.log("replace text", regex, replacement, previousLine);
+          const currentLine = document.getSelection().getRangeAt(0)
+            .startContainer.parentNode;
+          document
+            .getSelection()
+            .getRangeAt(
+              0
+            ).startContainer.parentNode.textContent = currentLine.textContent.replace(
+            regex,
+            ""
+          );
+          this.editor.commands.insertContent(replacement);
+        },
+        getElementsBySelector: (selector) => {
+          console.log(
+            "get elements by selector",
+            this.editor.contentComponent.$el.querySelectorAll(selector)
+          );
+          return this.editor.contentComponent.$el.querySelectorAll(selector);
+        },
+        insertElement: (element, inVicinityOfElement, insertionType) => {
+          console.log(
+            "insert element",
+            element,
+            inVicinityOfElement,
+            insertionType
+          );
+
+          if (
+            element.hasAttribute("id") &&
+            document.getElementById(element.id)
+          ) {
+            console.log("removing");
+            const elem = document.getElementById(element.id);
+            elem.parentElement.removeChild(elem);
+          } else if (
+            element.hasAttribute("fsid") &&
+            document.getElementById(element.getAttribute("fsid"))
+          ) {
+            console.log("removing");
+            const elem = document.getElementById(element.getAttribute("fsid"));
+            elem.parentElement.removeChild(elem);
+          }
+
+          console.log(inVicinityOfElement.innerHTML);
+          if (inVicinityOfElement) {
+            if (insertionType === "afterend") {
+              console.log("insert element - afterend");
+              inVicinityOfElement.insertAdjacentElement("afterend", element);
+            } else if (insertionType === "child") {
+              console.log("insert element - child");
+              inVicinityOfElement.after(element);
+            }
+          } else {
+            console.log("insert element at cursor");
+            this.editor.commands.insertContent(element);
+          }
+        },
+        preprocessElement: (element) => {
+          console.log("preprocess element", element, element.tagName);
+          if (element.hasAttribute("style")) {
+            element.removeAttribute("style");
+          }
+
+          if (element.tagName === "LABEL") {
+            const p = document.createElement("p");
+            p.innerHTML = element.innerHTML;
+            element.attributes.forEach((item) => {
+              p.setAttribute(item.name, item.value);
+            });
+            element = p;
+          }
+
+          if (element.tagName === "IMG") {
+            const f = document.createElement("figure");
+            f.classList.add("image-container");
+            element = f.appendChild(element);
+          }
+
+          console.log(element);
+          return element;
+        },
         clearUndoHistory: () => {
           this.configureEditor();
         },
@@ -104,17 +212,30 @@ export default {
              * Handle user switching note while sharing a different note live.
              * Fixes issue where the new note content is shared with conected peers.
              */
-            this.webrtcEnabled = false;
-            this.note_uuid = note.uuid; // Set new note uuid
+            this.editor.destroy();
             this.disconnectWebrtc();
+            this.note_uuid = note.uuid; // Set new note uuid
+          } else {
+            this.editorKit &&
+              this.editorKit.fileLoader &&
+              this.editorKit.fileLoader.loadFileSafeElements();
           }
         },
       };
 
       this.editorKit = new EditorKit(delegate, {
         mode: "html",
-        supportsFileSafe: false,
+        supportsFileSafe: true,
       });
+
+      if (!window.filesafe_params) {
+        this.editorKit.getFileSafe().then((filesafeInstance) => {
+          window.filesafe_params = {
+            embed: FilesafeEmbed,
+            client: filesafeInstance,
+          };
+        });
+      }
     },
 
     configureEditor(defaultText = undefined) {
@@ -122,7 +243,6 @@ export default {
       if (this.editor) {
         if (defaultText) editorText = defaultText;
         else editorText = this.editor.getHTML();
-
         this.editor.off(this.onEditorUpdate);
         this.editor.destroy();
       }
@@ -167,9 +287,54 @@ export default {
           content: editorText,
         });
       }
+      this.editor.on("create", () => {
+        this.addEditorKeystrokeEvents();
+        this.editorKit.fileLoader.loadFileSafeElements();
+      });
 
       this.tiptap = this;
       this.editor.on("update", this.onEditorUpdate);
+    },
+
+    addEditorKeystrokeEvents() {
+      this.editor.contentComponent.$el.addEventListener(
+        "keyup",
+        this.onKeyUpHandler
+      );
+      this.editor.contentComponent.$el.addEventListener(
+        "paste",
+        this.onPasteHandler
+      );
+
+      this.editor.on("destroy", () => {
+        console.log("destroying event listeners");
+        this.editor.contentComponent.$el.removeEventListener(
+          "keyup",
+          this.onKeyUpHandler
+        );
+        this.editor.contentComponent.$el.removeEventListener(
+          "paste",
+          this.onPasteHandler
+        );
+      });
+    },
+
+    onKeyUpHandler(event) {
+      if (!this.editorKit) return;
+      const key = event.which;
+      this.editorKit.onEditorKeyUp({
+        isSpace: (key == event.code) === "Space",
+        isEnter: (key == event.code) === "Enter",
+      });
+    },
+
+    onPasteHandler() {
+      if (!this.editorKit) return;
+      this.editorKit.onEditorPaste();
+    },
+
+    insertImage() {
+      this.$refs.filesafeModal.showModal();
     },
 
     /*
@@ -180,27 +345,11 @@ export default {
     },
 
     /*
-     * Copies the specified string to the clipboard
-     */
-    copyStringToClipboard(str) {
-      if (typeof str !== "string") return;
-      const tempElem = document.createElement("textarea");
-      tempElem.value = str;
-      // Hide element
-      tempElem.style.position = "absolute";
-      tempElem.style.left = "-999px";
-      document.body.appendChild(tempElem);
-      tempElem.select();
-      document.execCommand("copy");
-      document.body.removeChild(tempElem);
-    },
-
-    /*
      * Present the meeting URL to host
      */
     presentSharingUrl() {
       console.log(this.webrtcBridge.getShareUrl());
-      this.copyStringToClipboard(this.webrtcBridge.getShareUrl());
+      copyStringToClipboard(this.webrtcBridge.getShareUrl());
 
       const alert = new SKAlert({
         title: "Share link copied to clipboard",
@@ -238,12 +387,37 @@ export default {
     },
 
     setupWebrtc() {
-      if (this.webrtcBridge && this.webrtcBridge.provider && this.editor) {
-        this.presentSharingUrl();
-      } else {
-        this.webrtcEnabled = true;
-        this.configureEditor();
+      if (!this.webrtcEnabled) {
+        this.confirmEnableWebrtc();
       }
+    },
+
+    confirmEnableWebrtc() {
+      const alert = new SKAlert({
+        title: "Warning!",
+        text:
+          "If this note has any images, please DO NOT use the share feature! Ignorning this message may result in lost data.",
+        buttons: [
+          {
+            text: "Don't Share",
+            style: "neutral",
+            action: function() {},
+          },
+          {
+            text: "Enable Sharing Anyway",
+            style: "neutral",
+            action: () => {
+              this._enableWebrtc();
+            },
+          },
+        ],
+      });
+      alert.present();
+    },
+
+    _enableWebrtc() {
+      this.webrtcEnabled = true;
+      this.configureEditor();
     },
 
     disconnectWebrtc() {
@@ -472,6 +646,10 @@ body {
   img {
     max-width: 100%;
     height: auto;
+
+    &.ProseMirror-selectednode {
+      outline: 3px solid #68cef8;
+    }
   }
 
   hr {

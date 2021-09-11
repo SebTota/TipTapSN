@@ -35,11 +35,42 @@ export default class Extensions {
     Paragraph.extend({
       addAttributes() {
         return {
-          testAttr: {
+          fsplaceholder: {
             ...this.parent?.(),
             default: null,
             keepOnSplit: false,
           },
+          fscollapsable: {
+            ...this.parent?.(),
+            default: null,
+            keepOnSplit: false,
+          },
+          ghost: {
+            ...this.parent?.(),
+            default: null,
+            keepOnSplit: false,
+          },
+          fsid: {
+            ...this.parent?.(),
+            default: null,
+            keepOnSplit: false,
+          },
+          fsname: {
+            ...this.parent?.(),
+            default: null,
+            keepOnSplit: false,
+          },
+          id: {
+            ...this.parent?.(),
+            default: null,
+            keepOnSplit: false,
+          },
+          contenteditable: {
+            ...this.parent?.(),
+            default: null,
+            keepOnSplit: false,
+          },
+
         };
       },
       addKeyboardShortcuts() {
@@ -51,7 +82,37 @@ export default class Extensions {
       },
     }),
     Text,
-    Image,
+    Image.extend({
+      addAttributes() {
+        return {
+          src: {
+            ...this.parent?.(),
+            default: null,
+            keepOnSplit: false,
+          },
+          srcset: {
+            ...this.parent?.(),
+            default: null,
+            keepOnSplit: false,
+          },
+          fsid: {
+            ...this.parent?.(),
+            default: null,
+            keepOnSplit: false,
+          },
+          fsname: {
+            ...this.parent?.(),
+            default: null,
+            keepOnSplit: false,
+          },
+          fscollapsable: {
+            ...this.parent?.(),
+            default: null,
+            keepOnSplit: false,
+          }
+        };
+      },
+    }),
     Dropcursor,
     TableRow,
     TableHeader,

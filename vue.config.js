@@ -1,3 +1,7 @@
 module.exports = {
-    publicPath: '/TipTapSN/'
+    publicPath: '/TipTapSN/',
+    devServer: {
+        hot: false,
+        liveReload: false
+      }
 }

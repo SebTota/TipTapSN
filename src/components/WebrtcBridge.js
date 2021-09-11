@@ -1,4 +1,5 @@
 import { WebrtcProvider } from "y-webrtc";
+import * as Y from "yjs";
 
 import Collaboration from "@tiptap/extension-collaboration";
 import CollaborationCursor from "@tiptap/extension-collaboration-cursor";
@@ -29,6 +30,8 @@ export default class WebrtcBridge {
       color: generateRandomColor(),
     };
 
+    this.subDocs = {};
+
     this.document = {
       name: documentName,
       password: documentPassword,
@@ -36,9 +39,59 @@ export default class WebrtcBridge {
 
     this.isWebrtcHost = checkIfHost();
     this.ydoc = htmlToYdoc(editorHtml);
+
     this.provider = new WebrtcProvider(this.document["name"], this.ydoc, {
       password: this.document["password"],
     });
+
+    if (this.isWebrtcHost) {
+      const folder = this.ydoc.getMap();
+      const subDoc = new Y.Doc({ autoLoad: true });
+      subDoc.getText().insert(0, "some initial content");
+      folder.set("my-document.txt", subDoc);
+      console.log(subDoc.getText().toString());
+    }
+
+    if (!this.isWebrtcHost) {
+      this.ydoc.on('subdocs', ({loaded}) => {
+        loaded.forEach(subdoc => {
+          this.subDocs[subdoc._item.parentSub] = new WebrtcProvider(this.document["name"] + subdoc.guid, subdoc, {
+            password: this.document["password"],
+          });
+
+          console.log('here')
+          console.log(this.subDocs[subdoc._item.parentSub].doc.getText().toString());
+
+          // console.log(this.subDocs);
+          // this.ydoc.getSubdocs().forEach(d => {
+          //   console.log(d.getText().toString());
+          // })
+        })
+      })
+    }
+
+    // if (!this.isWebrtcHost) {
+    //   var _interval = setInterval(() => {
+    //     if (!this.ydoc.getMap().has("my-document.txt")) {
+    //       null;
+    //     } else {
+    //       clearInterval(_interval);
+    //       console.log('found in map')
+    //       console.log(this.ydoc.getMap().has("my-document.txt"))
+    //       console.log(this.ydoc.getMap().get("my-document.txt"))
+    //       const subDoc = this.ydoc.getMap().get("my-document.txt");
+    //       subDoc.load();
+    //       console.log(subDoc);
+    //       const subDocText = subDoc.getText();
+    //       console.log("text before synced event: ", subDocText.toString());
+    //       console.log("loading");
+    //       subDoc.on("synced", () => {
+    //         console.log("loaded");
+    //         console.log("text after synced event: ", subDocText.toString());
+    //       });
+    //     }
+    //   }, 500);
+    // }
   }
 
   getExtensions() {
@@ -119,17 +172,49 @@ export default class WebrtcBridge {
           console.log("Connected to WebRTC room");
           if (this.isWebrtcHost)
             this.webrtcHostId = this.provider["room"]["peerId"];
-          this.shareUrl = `https://sebtota.github.io/TipTapSN/?joinSharedSession=true&documentName=${this.document["name"]}&documentPassword=${this.document["password"]}&hostId=${this.webrtcHostId}`;
+          this.shareUrl = `localhost:8080/TipTapSN/?joinSharedSession=true&documentName=${this.document["name"]}&documentPassword=${this.document["password"]}&hostId=${this.webrtcHostId}`;
           /*
            * WebRTC clients (non-hosts) should remember the hosts unique ID to determine when the host has left the room.
            * On each subsequent `peers` event, they should check to see if that unique ID has left. If so, the host has left the room.
            */
           this.provider.on("peers", (data) => {
+            // console.log("peers", this.provider.room.webrtcConns);
             this.provider.room.webrtcConns.forEach((v, k) => {
               if (!this.webrtcUsers.includes(k)) {
                 this.webrtcUsers.push(k);
-                v.peer.on("data", (d) => {
-                  console.log(d);
+
+                v.peer.on("connect", () => {
+                  // const peerCon = v.peer._pc;
+                  // const imageDataChannel = peerCon.createDataChannel(
+                  //   "ImageChannel"
+                  // );
+                  // console.log("peer", v);
+                  // imageDataChannel.addEventListener("message", (m) => {
+                  //   console.log("image channel", m);
+                  // });
+                  // let obj = {
+                  //   message: "test",
+                  //   timestamp: new Date(),
+                  // };
+                  // imageDataChannel.addEventListener("open", () => {
+                  //   console.log('sending message');
+                  //   imageDataChannel.send(JSON.stringify(obj));
+                  // });
+                  // const yjsDataChannel = v.peer._channel;
+                  // let obj = {
+                  //   message: "test",
+                  //   type: "image",
+                  //   timestamp: new Date(),
+                  // };
+                  // v.peer._channel.addEventListener("message", (m) => {
+                  //   try {
+                  //     // const messageData = JSON.parse(m.data);
+                  //     // console.log(messageData);
+                  //   } catch {
+                  //     null;
+                  //   }
+                  // });
+                  // yjsDataChannel.send(JSON.stringify(obj));
                 });
               }
             });
@@ -141,6 +226,18 @@ export default class WebrtcBridge {
         }
       }, 100);
     });
+  }
+
+  syncImagesWithPeers() {}
+
+  getBase64Image(img) {
+    var canvas = document.createElement("canvas");
+    canvas.width = img.width;
+    canvas.height = img.height;
+    var ctx = canvas.getContext("2d");
+    ctx.drawImage(img, 0, 0);
+    var dataURL = canvas.toDataURL("image/png");
+    return dataURL.replace(/^data:image\/(png|jpg);base64,/, "");
   }
 
   isConnectedWebrtc() {
