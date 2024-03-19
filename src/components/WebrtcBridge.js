@@ -12,8 +12,8 @@ import {
 
 export default class WebrtcBridge {
   constructor(
-    documentName = generateId(64),
-    documentPassword = generateId(64),
+    documentName = generateId(8),
+    documentPassword = generateId(12),
     hostId = undefined,
     editorHtml = ""
   ) {
