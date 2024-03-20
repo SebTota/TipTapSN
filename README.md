@@ -23,15 +23,6 @@ Watch this [video](https://drive.google.com/file/d/1zgZXtHYWN3DweDkmvSAioeLVHQhy
 * No data communication servers means that you don't have to worry about server outages or servers being outright shut down.
 * WebRTC is supported by most modern desktop and mobile browsers
 
-### Signaling Servers
-These are the signalling servers currently being used:
-```
-wss://signaling.yjs.dev
-wss://y-webrtc-signaling-eu.herokuapp.com
-wss://y-webrtc-signaling-us.herokuapp.com
-```
-In the future I would like to give users the ability to specify their own servers, but that is not an option at this point in time.
-
 ## How to install the editor in Standard Notes
 
 * Open the Standard Notes application and click the 'Extensions` button.
