@@ -1,5 +1,10 @@
 # TipTapSN
-Note: This editor is still in beta and may contain bugs. 
+## DEPRECATION NOTICE
+This Standard Notes editor is no longer maintained and has been deprecated due to changes in Standard Notes. This editor may no longer function in the latest version of Standard Notes, but the notes are transferable to any HTML based editor in Standard Notes.
+
+While a new version of this editor is in the works, the current version should no longer be used.
+
+### Description
 
 TipTapSN is a collaborative note editor built for [Standard Notes](https://standardnotes.com) using the [TipTap](https://www.tiptap.dev) WYSIWYG editor. The key benefit of TipTapSN is the collaborative feature which allows you to work on a note with multiple users.
 
