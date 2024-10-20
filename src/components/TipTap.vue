@@ -6,27 +6,44 @@
 </template>
 
 <script setup lang="ts">
-import { shallowRef, onMounted, onBeforeUnmount } from 'vue'
-import { Editor, EditorContent } from '@tiptap/vue-3'
-import StarterKit from '@tiptap/starter-kit'
-import MenuBar from './MenuBar.vue'
+import { shallowRef, onMounted, onBeforeUnmount, watch } from "vue";
+import { Editor, EditorContent } from "@tiptap/vue-3";
+import MenuBar from "./MenuBar.vue";
+import { getEditorExtensions } from "@/utils/editorConfig";
 
-const editor = shallowRef<Editor | null>(null)
+const props = defineProps<{
+  initialContent: string;
+}>();
+
+const editor = shallowRef<Editor | null>(null);
 
 onMounted(() => {
   editor.value = new Editor({
-    extensions: [StarterKit],
-    content: '<p>Hello, World!</p>',
+    extensions: getEditorExtensions(),
+    content: "<p>Hello, World!</p>",
     autofocus: true,
     editable: true,
-  })
-})
+    onUpdate: ({ editor }) => {
+      const htmlContent = editor.getHTML();
+      console.log("Content updated:", htmlContent);
+    },
+  });
+});
+
+watch(
+  () => props.initialContent,
+  (newContent) => {
+    if (editor.value && newContent !== editor.value.getHTML()) {
+      editor.value.commands.setContent(newContent, false);
+    }
+  },
+);
 
 onBeforeUnmount(() => {
   if (editor.value) {
-    editor.value.destroy()
+    editor.value.destroy();
   }
-})
+});
 </script>
 
 <style lang="scss" scoped>
