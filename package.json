@@ -5,11 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "run-p type-check \"build-only {@}\" --",
+    "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview",
-    "build-only": "vite build",
-    "type-check": "vue-tsc --build --force",
-    "lint": "eslint . --fix",
+    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore",
+    "postbuild": "cp ./src/ext.json ./dist/ext.json",
     "format": "prettier --write src/"
   },
   "dependencies": {
@@ -32,6 +31,7 @@
     "eslint-plugin-vue": "^9.29.0",
     "npm-run-all2": "^6.2.3",
     "prettier": "^3.3.3",
+    "sass-embedded": "^1.80.3",
     "typescript": "~5.5.4",
     "vite": "^5.4.8",
     "vue-tsc": "^2.1.6"
