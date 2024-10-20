@@ -1,0 +1,8 @@
+{
+    "identifier": "com.github.sebtota.tiptap-sn.dev",
+    "name": "TipTapSN (Dev)",
+    "content_type": "SN|Component",
+    "area": "editor-editor",
+    "version": "0.1.23",
+    "url": "http://localhost:5173/TipTapSN"
+}
