@@ -1,18 +1,17 @@
 <template>
   <div class="editor">
     <menu-bar v-if="editor" :editor="editor" />
-    <editor-content :editor="editor" />
+    <editor-content v-if="editor" :editor="editor" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount } from 'vue'
-import { Editor } from '@tiptap/vue-3'
+import { shallowRef, onMounted, onBeforeUnmount } from 'vue'
+import { Editor, EditorContent } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
-import { EditorContent } from '@tiptap/vue-3'
 import MenuBar from './MenuBar.vue'
 
-const editor = ref<Editor | null>(null)
+const editor = shallowRef<Editor | null>(null)
 
 onMounted(() => {
   editor.value = new Editor({
@@ -24,7 +23,9 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
-  editor.value?.destroy()
+  if (editor.value) {
+    editor.value.destroy()
+  }
 })
 </script>
 
